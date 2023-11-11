@@ -93,19 +93,6 @@ networks:
     driver_opts:
       com.docker.network.bridge.name: db_host_br
 
-
-  grpc:
-    build:
-      context: ./grpc_service  # Relative path to the directory containing Dockerfile for gRPC service
-      dockerfile: Dockerfile
-    container_name: grpc_service
-    volumes:
-      - ./grpc_service:/app  # Mount your gRPC service code into the container
-    networks:
-      - public
-    depends_on:
-      - scylla
-
 volumes:
   scylla_data:
   ubuntu_data:
