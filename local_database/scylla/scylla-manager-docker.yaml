@@ -1,0 +1,5 @@
+http: ':56080'
+
+database:
+  hosts:
+    - scylla-agent
