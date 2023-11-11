@@ -1,0 +1,111 @@
+version: "3.3"
+services:
+  scylla:
+    image: scylladb/scylla:latest
+    container_name: scylla
+    hostname: ${HOSTNAME}_scylla
+    privileged: true
+    restart: always
+    volumes:
+      - ./scylla/cassandra-rackdc.properties:/etc/scylla/cassandra-rackdc.properties
+      - scylla_data:/var/lib/scylla
+    ulimits:
+      nofile: 1048576
+    command: --developer-mode=${DEVELOPER_MODE} --broadcast-address ${IP_ADDR} --broadcast-rpc-address ${IP_ADDR}
+    ports:
+      - 9042:9042 # CQL native transport
+      - 9160:9160 # Thrift Server
+      - 9180:9180 # prometheus API
+      - 10000:10000 # Scylla API
+    networks:
+      - public
+    healthcheck:
+      test: nodetool status
+      interval: 30s
+      timeout: 15s
+      retries: 3
+
+  # Trino will talk to a local instance of scylla, stats about trino can be seen at :8085
+  # To set up DataGrip you can get the jdbc driver by going to https://trinodb.io/download.html
+  #  when using the jdbc driver make sure your URL is jdbc:trino://localhost:8085/catalog/schema
+  trino:
+    image: trinodb/trino:latest
+    #image: trinodb/trino:0.283-arm64
+    container_name: trino
+    hostname: ${HOSTNAME}_trinoi
+    environment:
+      - DOCKER_DEFAULT_PLATFORM=linux/arm64
+    volumes:
+      - ./trino/cassandra.properties:/etc/trino/catalog/cassandra.properties
+      - ./trino/config.properties:/etc/trino/config.properties
+      - ./trino/jvm.config:/etc/trino/jvm.config
+      - ./trino/node.properties:/etc/trino/node.properties
+    ulimits:
+      nofile: 1048576
+    ports:
+      - 8085:8080
+    networks:
+      - public
+    depends_on:
+      - scylla
+
+  ubuntu:
+    build:
+      context: ./ubuntu
+      dockerfile: Dockerfile
+    container_name: ubuntu
+    stdin_open: true
+    tty: true
+    command: /bin/bash
+    volumes:
+      - ubuntu_data:/root/db-manager
+    networks:
+      - public
+    depends_on:
+      - scylla
+      
+  netdata:
+    image: netdata/netdata:latest
+    container_name: netdata
+    hostname: ${HOSTNAME}_netdata
+    ports:
+      - 19999:19999
+    restart: always
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - public
+    healthcheck:
+      test: curl --connect-timeout 15 --silent --show-error --fail "http://localhost:19999"
+      interval: 1m20s
+      timeout: 15s
+      retries: 3
+
+networks:
+  public:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: db_host_br
+
+
+  grpc:
+    build:
+      context: ./grpc_service  # Relative path to the directory containing Dockerfile for gRPC service
+      dockerfile: Dockerfile
+    container_name: grpc_service
+    volumes:
+      - ./grpc_service:/app  # Mount your gRPC service code into the container
+    networks:
+      - public
+    depends_on:
+      - scylla
+
+volumes:
+  scylla_data:
+  ubuntu_data:
