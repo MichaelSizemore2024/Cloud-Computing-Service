@@ -24,9 +24,5 @@ RUN sudo apt-get install -y ./scylla-cpp-driver_2.15.2-1_amd64.deb ./scylla-cpp-
 # Create a directory in the root of the container
 RUN mkdir -p /root/db-manager
 
-# Copy the Makefile and Connect.cpp into the db-manager directory
-#COPY Makefile /root/db-manager/Makefile
-#COPY connect.cpp  /root/db-manager/connect.cpp
-
 # Start an interactive shell as default
 CMD ["/bin/bash"]   
