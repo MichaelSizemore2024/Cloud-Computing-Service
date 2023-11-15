@@ -59,6 +59,8 @@ services:
     command: /bin/bash
     volumes:
       - ubuntu_data:/root/db-manager
+      - ./ubuntu/connect.cpp:/root/db-manager/connect.cpp
+      - ./ubuntu/Makefile:/root/db-manager/Makefile
     networks:
       - public
     depends_on:
