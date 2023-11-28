@@ -1,5 +1,5 @@
-# Use the official Ubuntu 18.04 image as a base (recommended for scylla drivers)
-FROM ubuntu:18.04
+ARG  CODE_VERSION=latest
+FROM ubuntu:${CODE_VERSION}
 
 # Update the package list and upgrade existing packages
 RUN apt-get update && \
@@ -8,21 +8,24 @@ RUN apt-get update && \
 # Install libraries for compiling
 RUN apt-get install -y \
     sudo \
-    gcc \
-    g++ \
-    make \
-    cmake \
     wget \
-    git
-
-# Download the Scylla C++ Driver
-RUN wget https://github.com/scylladb/cpp-driver/releases/download/2.15.2-1/scylla-cpp-driver_2.15.2-1_amd64.deb https://github.com/scylladb/cpp-driver/releases/download/2.15.2-1/scylla-cpp-driver-dev_2.15.2-1_amd64.deb
-
-# Install the Drivers
-RUN sudo apt-get install -y ./scylla-cpp-driver_2.15.2-1_amd64.deb ./scylla-cpp-driver-dev_2.15.2-1_amd64.deb
+    git \
+    autoconf libtool pkg-config \
+    protobuf-compiler
 
 # Create a directory in the root of the container
 RUN mkdir -p /root/db-manager
+
+# Change dir to the volume and install GO
+WORKDIR /root/db-manager
+RUN wget https://go.dev/dl/go1.21.4.linux-amd64.tar.gz
+
+RUN rm -rf /usr/local/go
+RUN tar -C /usr/local -xzf go1.21.4.linux-amd64.tar.gz
+ENV PATH="$PATH:/usr/local/go/bin"
+
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28 && \
+    go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 
 # Start an interactive shell as default
 CMD ["/bin/bash"]   
