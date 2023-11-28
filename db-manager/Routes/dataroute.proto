@@ -1,0 +1,18 @@
+// Basic proto file to handle database interactions
+syntax = "proto3";
+
+option go_package = "./dbmanager_package";
+import "google/protobuf/any.proto";
+
+service DataRoute {
+    rpc GetTable (TableRequest) returns (TableResponse) {}
+}
+
+message TableRequest {
+    string name = 1;
+}
+
+message TableResponse {
+    string name = 1;
+    google.protobuf.Any value = 2;
+}
