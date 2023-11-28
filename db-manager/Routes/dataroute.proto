@@ -1,7 +1,8 @@
 // Basic proto file to handle database interactions
 syntax = "proto3";
+package dataroute;
 
-option go_package = "./dbmanager_package";
+option go_package = "./Routes";
 import "google/protobuf/any.proto";
 
 service DataRoute {

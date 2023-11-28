@@ -4,7 +4,7 @@
 // - protoc             v3.12.4
 // source: Routes/dataroute.proto
 
-package dbmanager_package
+package Routes
 
 import (
 	context "context"
@@ -35,7 +35,7 @@ func NewDataRouteClient(cc grpc.ClientConnInterface) DataRouteClient {
 
 func (c *dataRouteClient) GetTable(ctx context.Context, in *TableRequest, opts ...grpc.CallOption) (*TableResponse, error) {
 	out := new(TableResponse)
-	err := c.cc.Invoke(ctx, "/DataRoute/GetTable", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/dataroute.DataRoute/GetTable", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func _DataRoute_GetTable_Handler(srv interface{}, ctx context.Context, dec func(
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/DataRoute/GetTable",
+		FullMethod: "/dataroute.DataRoute/GetTable",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataRouteServer).GetTable(ctx, req.(*TableRequest))
@@ -92,7 +92,7 @@ func _DataRoute_GetTable_Handler(srv interface{}, ctx context.Context, dec func(
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var DataRoute_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "DataRoute",
+	ServiceName: "dataroute.DataRoute",
 	HandlerType: (*DataRouteServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
