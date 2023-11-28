@@ -58,9 +58,7 @@ services:
     tty: true
     command: /bin/bash
     volumes:
-      - ubuntu_data:/root/db-manager
-      - ./db-manager/connect.cpp:/root/db-manager/connect.cpp
-      - ./db-manager/Makefile:/root/db-manager/Makefile
+      - ./db-manager/:/root/db-manager/
     networks:
       - public
     depends_on:
@@ -97,4 +95,3 @@ networks:
 
 volumes:
   scylla_data:
-  ubuntu_data:
