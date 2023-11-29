@@ -14,3 +14,23 @@ $ go get google.golang.org/protobuf
 
 # Install gRPC
 $ go get google.golang.org/grpc
+
+# Install Scylla driver
+$ go get github.com/gocql/gocql
+
+# Cleanup
+$ go mod tidy
+
+# Running the server
+$ go run Server/server.go <create|delete|grpc> <keyspace_name> <optional flags: -port>
+# i.e for grpc server
+$ go run Server/server.go grpc -port=50051
+# i.e for keyspace
+$ go run Server/server.go create TestKeyspaceName
+
+# Running the client
+$ go run Client/client.go <optional flags: -name, -addr>
+
+# Scylla Keyspace management
+$ go run Server/server.go create ks
+$ go run Server/server.go delete ks
