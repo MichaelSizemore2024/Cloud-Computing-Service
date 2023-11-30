@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+option go_package = "../common";
+
+message EducationData {
+  string country = 1;
+  double latitude = 2;
+  double longitude = 3;
+  int32 oosr_pre0primary_age_male = 4;
+  int32 oosr_pre0primary_age_female = 5;
+  int32 oosr_primary_age_male = 6;
+  int32 oosr_primary_age_female = 7;
+  int32 oosr_lower_secondary_age_male = 8;
+  int32 oosr_lower_secondary_age_female = 9;
+  int32 oosr_upper_secondary_age_male = 10;
+  int32 oosr_upper_secondary_age_female = 11;
+  int32 completion_rate_primary_male = 12;
+  int32 completion_rate_primary_female = 13;
+  int32 completion_rate_lower_secondary_male = 14;
+  int32 completion_rate_lower_secondary_female = 15;
+  int32 completion_rate_upper_secondary_male = 16;
+  int32 completion_rate_upper_secondary_female = 17;
+  int32 grade_2_3_proficiency_reading = 18;
+  int32 grade_2_3_proficiency_math = 19;
+  int32 primary_end_proficiency_reading = 20;
+  int32 primary_end_proficiency_math = 21;
+  int32 lower_secondary_end_proficiency_reading = 22;
+  int32 lower_secondary_end_proficiency_math = 23;
+  int32 youth_15_24_literacy_rate_male = 24;
+  int32 youth_15_24_literacy_rate_female = 25;
+  double birth_rate = 26;
+  double gross_primary_education_enrollment = 27;
+  double gross_tertiary_education_enrollment = 28;
+  double unemployment_rate = 29;
+}
+
+message EducationResponse {
+  string message = 1;
+}
+
+service EducationService {
+  rpc InsertEducation (EducationData) returns (EducationResponse);
+}

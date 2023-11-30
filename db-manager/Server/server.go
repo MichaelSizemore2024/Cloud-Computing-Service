@@ -11,10 +11,10 @@ import (
 
 	"github.com/gocql/gocql" // for scylla
 
-	Routes "dbmanager/Routes" // Import the generated code
+	Routes "dbmanager/common" // Import the generated code
 
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/anypb" // import ANY class for future use
+	//"google.golang.org/protobuf/types/known/anypb" // import ANY class for future use
 )
 
 // variabels that can be passed in via command line such as --port=50051 or -port=50051
@@ -24,7 +24,8 @@ var (
 
 // Server implements the interface
 type server struct {
-	Routes.UnimplementedDataRouteServer
+	Routes.UnimplementedEducationServiceServer
+	Routes.UnimplementedEmailServiceServer
 	mu      sync.Mutex           // mutex for thread-safe operations
 	cluster *gocql.ClusterConfig // database cluster
 }
@@ -98,16 +99,19 @@ func (server *server) deleteKeyspace(keyspaceName string) error {
 }
 
 // GetData implements the GetData RPC method
-func (s *server) GetTable(ctx context.Context, req *Routes.TableRequest) (*Routes.TableResponse, error) {
+func (s *server) InsertEmail(ctx context.Context, req *Routes.EmailData) (*Routes.EmailResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock() // defer runs this once returned from this method
 
-	// Testing Any data type
-	any, err := anypb.New(req)
-	if err != nil {
-		log.Fatalf("Error parsing any datatype: %v", err)
-	}
-	return &Routes.TableResponse{Name: req.GetName(), Value: any}, nil
+	return &Routes.EmailResponse{Message: "Received Email"}, nil
+}
+
+// GetData implements the GetData RPC method
+func (s *server) InsertEducation(ctx context.Context, req *Routes.EducationData) (*Routes.EducationResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock() // defer runs this once returned from this method
+
+	return &Routes.EducationResponse{Message: "Received Education"}, nil
 }
 
 func main() {
@@ -144,7 +148,8 @@ func main() {
 		// Create a new gRPC server
 		grpcServer := grpc.NewServer()
 		// Register the DataRoute service implementation with the server
-		Routes.RegisterDataRouteServer(grpcServer, app)
+		Routes.RegisterEducationServiceServer(grpcServer, app)
+		Routes.RegisterEmailServiceServer(grpcServer, app)
 
 		// Start the gRPC server as a goroutine
 		go func() {

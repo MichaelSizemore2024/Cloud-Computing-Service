@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+option go_package = "../common";
+
+message EmailData {
+  int32 label = 1;
+  string text = 2;
+}
+
+message EmailResponse {
+  string message = 1;
+}
+
+service EmailService  {
+  rpc InsertEmail (EmailData) returns (EmailResponse);
+}
