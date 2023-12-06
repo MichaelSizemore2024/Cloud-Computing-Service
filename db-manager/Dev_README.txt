@@ -13,12 +13,6 @@ $ go get google.golang.org/grpc
 # Install Scylla driver
 $ go get github.com/gocql/gocql
 
-# Install Python3
-$ sudo apt install python3
-
-# Install pip
-$ sudo apt install pip
-
 # Install gRPC (python)
 $ python3 -m pip install grpcio-tools
 
