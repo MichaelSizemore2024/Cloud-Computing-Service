@@ -40,7 +40,7 @@ func NewServer() *server {
 // initDatabaseCluster initializes the Cassandra/ScyllaDB cluster configuration.
 func initDatabaseCluster() *gocql.ClusterConfig {
 	cluster := gocql.NewCluster("scylla") // Add ScyllaDB node IP here
-	cluster.Consistency = gocql.Quorum    // Set the consistency level
+	cluster.Consistency = gocql.One       // Set the consistency level
 	return cluster
 }
 
@@ -125,16 +125,16 @@ func main() {
 	action := os.Args[1]
 	keyspaceName := os.Args[2]
 
-	app := NewServer()
+	dbserver := NewServer()
 
 	switch action {
 	case "create":
-		err := app.createKeyspace(keyspaceName)
+		err := dbserver.createKeyspace(keyspaceName)
 		if err != nil {
 			log.Fatalf("Error creating keyspace: %v", err)
 		}
 	case "delete":
-		err := app.deleteKeyspace(keyspaceName)
+		err := dbserver.deleteKeyspace(keyspaceName)
 		if err != nil {
 			log.Fatalf("Error deleting keyspace: %v", err)
 		}
@@ -148,8 +148,8 @@ func main() {
 		// Create a new gRPC server
 		grpcServer := grpc.NewServer()
 		// Register the DataRoute service implementation with the server
-		Routes.RegisterEducationServiceServer(grpcServer, app)
-		Routes.RegisterEmailServiceServer(grpcServer, app)
+		Routes.RegisterEducationServiceServer(grpcServer, dbserver)
+		Routes.RegisterEmailServiceServer(grpcServer, dbserver)
 
 		// Start the gRPC server as a goroutine
 		go func() {
