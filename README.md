@@ -2,11 +2,19 @@
 
 
 
-## Getting started
+## DBeaver Setup
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- [ ] Download and open DBeaver
+- [ ] Select Database > Driver Manager
+- [ ] Search for Trino
+- [ ] Double click on the Trino rabbit and select Copy:
+	- [ ] Settings: Port 8085 (or whatever port is on Docker trino)
+		- [ ] Default User: user
+		- [ ] Eefault Database: cassandra
+	- [ ] Libraries: Download/Update button
+		- [ ] Popup select Download
+- [ ] Select Database > New Database Connection
+	- [ ] Select Trino Copy > Finish
 
 ## Add your files
 
