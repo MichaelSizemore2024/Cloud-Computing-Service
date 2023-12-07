@@ -140,24 +140,24 @@ func main() {
 	flag.Parse()
 
 	if len(os.Args) > 3 {
-		fmt.Println("Usage: go run main.go <create|delete|grpc> <arg>")
+		fmt.Println("Usage: go run server.go <create|delete|grpc> <arg>")
 		os.Exit(1)
 	}
 
 	action := os.Args[1]
 
-	app := NewServer()
+	dbserver := NewServer()
 
 	switch action {
 	case "create":
 		keyspaceName := os.Args[2]
-		err := app.createKeyspace(keyspaceName)
+		err := dbserver.createKeyspace(keyspaceName)
 		if err != nil {
 			log.Fatalf("Error creating keyspace: %v", err)
 		}
 	case "delete":
 		keyspaceName := os.Args[2]
-		err := app.deleteKeyspace(keyspaceName)
+		err := dbserver.deleteKeyspace(keyspaceName)
 		if err != nil {
 			log.Fatalf("Error deleting keyspace: %v", err)
 		}
@@ -187,8 +187,8 @@ func main() {
 		// Create a new gRPC server
 		grpcServer := grpc.NewServer()
 		// Register the DataRoute service implementation with the server
-		Routes.RegisterEducationServiceServer(grpcServer, app)
-		Routes.RegisterEmailServiceServer(grpcServer, app)
+		Routes.RegisterEducationServiceServer(grpcServer, dbserver)
+		Routes.RegisterEmailServiceServer(grpcServer, dbserver)
 
 		// Start the gRPC server as a goroutine
 		go func() {
