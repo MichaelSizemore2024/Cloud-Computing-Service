@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	//"reflect"
 	"sync"
 
 	"github.com/gocql/gocql" // for scylla
@@ -14,6 +15,7 @@ import (
 	Routes "dbmanager/common" // Import the generated code
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 	//"google.golang.org/protobuf/types/known/anypb" // import ANY class for future use
 )
 
@@ -147,6 +149,7 @@ func main() {
 
 		// Create a new gRPC server
 		grpcServer := grpc.NewServer()
+		reflection.Register(grpcServer)
 		// Register the DataRoute service implementation with the server
 		Routes.RegisterEducationServiceServer(grpcServer, dbserver)
 		Routes.RegisterEmailServiceServer(grpcServer, dbserver)

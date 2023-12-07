@@ -18,6 +18,9 @@ RUN apt-get install -y \
 # Create a directory in the root of the container
 RUN mkdir -p /root/db-manager
 
+# Install gRPC tools for Python
+RUN python3 -m pip install grpcio-tools
+
 # Change dir to the volume and install GO
 WORKDIR /root/db-manager
 RUN wget https://go.dev/dl/go1.21.4.linux-amd64.tar.gz
@@ -28,6 +31,15 @@ ENV PATH="$PATH:/usr/local/go/bin"
 
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28 && \
     go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+
+# Initial Compile
+RUN go mod init dbmanager && \
+    export PATH="$PATH:$(go env GOPATH)/bin" && \
+    go get google.golang.org/protobuf && \
+    go get google.golang.org/grpc && \
+    go get github.com/gocql/gocql && \
+    go mod tidy
+
 
 # Start an interactive shell as default
 CMD ["/bin/bash"]   
