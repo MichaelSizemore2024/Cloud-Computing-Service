@@ -34,7 +34,7 @@ $ python3 -m grpc_tools.protoc --proto_path=./proto --python_out=common --grpc_p
 $ protoc --go_out=common --go-grpc_out=common proto/email.proto
 
 # Running the server
-$ go run Server/server.go <create|delete|grpc> <keyspace_name> <optional flags: -port>
+$ go run Server/server.go <create|delete|grpc> <arg>
 # i.e for grpc server
 $ go run Server/server.go grpc
 $ go run Server/server.go grpc 50052
