@@ -43,7 +43,9 @@ $ go run Server/server.go create TestKeyspaceName
 $ go run Server/server.go delete TestKeyspaceName
 
 # Running Each of the individual clients
-$ python education_client.py <csv_file_path> --address <server_address> --port <port_number>
+$ python education_client.py <csv_file_path> --address <server_address> --port <port_number> <arg>
 # i.e for python clients
 $ python3 Client/edu_client.py data/education_data.csv
+# i.e Add all emails / delete all emails
 $ python3 Client/email_client.py data/email_data.csv
+$ python3 Client/email_client.py data/email_data.csv --delete
