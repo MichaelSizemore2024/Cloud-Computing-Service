@@ -4,24 +4,6 @@
 $ go mod init dbmanager
 $ export PATH="$PATH:$(go env GOPATH)/bin"
 
-# Install GO
-$ go get google.golang.org/protobuf
-
-# Install gRPC
-$ go get google.golang.org/grpc
-
-# Install Scylla driver
-$ go get github.com/gocql/gocql
-
-# Install Python3
-$ sudo apt install python3
-
-# Install pip
-$ sudo apt install pip
-
-# Install gRPC (python)
-$ python3 -m pip install grpcio-tools
-
 # Cleanup
 $ go mod tidy
 

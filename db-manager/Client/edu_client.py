@@ -8,8 +8,11 @@ current_directory = sys.path[0]
 routes_directory = current_directory + '/../common'
 sys.path.insert(1, routes_directory)
 
+from google.protobuf import any_pb2
 import education_pb2
 import education_pb2_grpc
+import generic_pb2
+import generic_pb2_grpc
 
 def get_value(value):
     try:
@@ -33,12 +36,16 @@ def run(csv_file_path, server_address='localhost', server_port=50051):
     # Connect to the gRPC server
     with grpc.insecure_channel(f'{server_address}:{server_port}') as channel:
         # Create a stub (client)
-        stub = education_pb2_grpc.EducationServiceStub(channel)
+        stub = generic_pb2_grpc.DB_InserterStub(channel)
 
         # Read and send data from the CSV file
         for education_data in read_csv(csv_file_path):
-            response = stub.InsertEducation(education_data)
-            print(f"Server Response: {response.message}")
+            request = generic_pb2.protobuf_insert_request(
+                keyspace="keyspace",
+                protobufs=[any_pb2.Any(value=education_data.SerializeToString())]
+            )
+            response = stub.Insert(request)
+            print(f"Server Response: {response.errs}")
 
 if __name__ == '__main__':
     # Use argparse to handle command-line arguments

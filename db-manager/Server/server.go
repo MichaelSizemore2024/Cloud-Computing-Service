@@ -29,8 +29,7 @@ var (
 
 // Server implements the interface
 type server struct {
-	Routes.UnimplementedEducationServiceServer
-	Routes.UnimplementedEmailServiceServer
+	Routes.UnimplementedDB_InserterServer
 	mu      sync.Mutex           // mutex for thread-safe operations
 	cluster *gocql.ClusterConfig // database cluster
 }
@@ -104,7 +103,7 @@ func (server *server) deleteKeyspace(keyspaceName string) error {
 }
 
 // GetData implements the GetData RPC method
-func (s *server) DeleteAllEmail(ctx context.Context, request *empty.Empty) (*Routes.EmailResponse, error) {
+func (s *server) DeleteAllEmail(ctx context.Context, request *empty.Empty) (*Routes.ProtobufInsertResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -129,41 +128,28 @@ func (s *server) DeleteAllEmail(ctx context.Context, request *empty.Empty) (*Rou
 		return nil, err
 	}
 
-	return &Routes.EmailResponse{Message: "All emails deleted successfully"}, nil
+	return &Routes.ProtobufInsertResponse{Errs: []string{"All emails deleted successfully"}}, nil
 }
 
-// GetData implements the GetData RPC method
-func (s *server) InsertEmail(ctx context.Context, request *Routes.EmailData) (*Routes.EmailResponse, error) {
+// Handle insert requests
+func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertRequest) (*Routes.ProtobufInsertResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Create a session to interact with the database
-	session, err := s.cluster.CreateSession()
-	if err != nil {
-		return nil, err
-	}
-	defer session.Close()
+	// var messages []protoreflect.ProtoMessage
+	// for _, any := range request.Protobufs {
+	// 	msg, err := any.UnmarshalNew() // Unmarshal each Any message to a ProtoMessage
+	// 	if err != nil {
+	// 		return &Routes.ProtobufInsertResponse{Errs: []string{err.Error()}}, err // return the error to client in a list of strings
+	// 	}
+	// 	messages = append(messages, msg) // add new protobuf to list of messages to handle
+	// }
 
-	// Insert email data into the database
-	emailInsertQuery := fmt.Sprintf(`
-		INSERT INTO %s.%s (label, text)
-		VALUES (?, ?)
-	`, "testkeyspacename", "email_data") // Keyspace and table name
+	// for _, m := range messages {
+	// 	fmt.Printf("\nprotobuf: %s", m.ProtoReflect().Descriptor().Syntax().String())
+	// }
 
-	if err := session.Query(emailInsertQuery, request.Label, request.Text).Exec(); err != nil {
-		log.Printf("Error inserting data: %v", err)
-		return nil, err
-	}
-
-	return &Routes.EmailResponse{Message: "Email inserted successfully"}, nil
-}
-
-// GetData implements the GetData RPC method
-func (s *server) InsertEducation(ctx context.Context, req *Routes.EducationData) (*Routes.EducationResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock() // defer runs this once returned from this method
-
-	return &Routes.EducationResponse{Message: "Received Education"}, nil
+	return &Routes.ProtobufInsertResponse{Errs: []string{"Messaged Accpected"}}, nil
 }
 
 func main() {
@@ -217,8 +203,7 @@ func main() {
 		// Create a new gRPC server
 		grpcServer := grpc.NewServer()
 		// Register the DataRoute service implementation with the server
-		Routes.RegisterEducationServiceServer(grpcServer, dbserver)
-		Routes.RegisterEmailServiceServer(grpcServer, dbserver)
+		Routes.RegisterDB_InserterServer(grpcServer, dbserver)
 
 		// Start the gRPC server as a goroutine
 		go func() {

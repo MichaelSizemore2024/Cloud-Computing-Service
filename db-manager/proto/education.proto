@@ -33,11 +33,3 @@ message EducationData {
   double gross_tertiary_education_enrollment = 28;
   double unemployment_rate = 29;
 }
-
-message EducationResponse {
-  string message = 1;
-}
-
-service EducationService {
-  rpc InsertEducation (EducationData) returns (EducationResponse);
-}

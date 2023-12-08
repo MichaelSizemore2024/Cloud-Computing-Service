@@ -1,0 +1,20 @@
+syntax = "proto3";
+ 
+import "google/protobuf/any.proto";
+
+option go_package = "../common";
+
+// insert messages
+message protobuf_insert_request {
+    string keyspace = 1;
+    repeated google.protobuf.Any protobufs = 2;
+    //repeated string servers = 3;
+}
+ 
+message protobuf_insert_response {
+    repeated string errs = 1;
+}
+
+service DB_Inserter {
+    rpc Insert (protobuf_insert_request) returns (protobuf_insert_response);
+}
