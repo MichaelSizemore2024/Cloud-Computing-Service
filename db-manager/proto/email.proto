@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 option go_package = "../common";
+import "google/protobuf/empty.proto";
 
 message EmailData {
   int32 label = 1;
@@ -13,4 +14,5 @@ message EmailResponse {
 
 service EmailService  {
   rpc InsertEmail (EmailData) returns (EmailResponse);
+  rpc DeleteAllEmail (google.protobuf.Empty) returns (EmailResponse);
 }
