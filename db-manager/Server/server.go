@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/gocql/gocql" // For scylla
+	"github.com/golang/protobuf/ptypes/empty"
 
 	Routes "dbmanager/common" // Import the generated code
 
@@ -100,6 +101,35 @@ func (server *server) deleteKeyspace(keyspaceName string) error {
 
 	fmt.Printf("Keyspace '%s' deleted successfully\n", keyspaceName)
 	return nil
+}
+
+// GetData implements the GetData RPC method
+func (s *server) DeleteAllEmail(ctx context.Context, request *empty.Empty) (*Routes.EmailResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Create a session to interact with the database
+	session, err := s.cluster.CreateSession()
+	if err != nil {
+		log.Printf("Error creating session: %v", err)
+		return nil, err
+	}
+	defer session.Close()
+
+	// Delete all email data in the database
+	emailDropTableQuery := fmt.Sprintf("DROP TABLE %s.%s;", "testkeyspacename", "email_data") // Keyspace and table name
+	emailCreateTableQuery := fmt.Sprintf("CREATE TABLE %s.%s (label INT, text TEXT PRIMARY KEY);", "testkeyspacename", "email_data")
+
+	if err := session.Query(emailDropTableQuery).Exec(); err != nil {
+		log.Printf("Error DROP TABLE: %v", err)
+		return nil, err
+	}
+	if err := session.Query(emailCreateTableQuery).Exec(); err != nil {
+		log.Printf("Error CREATE TABLE: %v", err)
+		return nil, err
+	}
+
+	return &Routes.EmailResponse{Message: "All emails deleted successfully"}, nil
 }
 
 // GetData implements the GetData RPC method
