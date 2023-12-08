@@ -42,6 +42,11 @@ $ go run Server/server.go grpc 50052
 $ go run Server/server.go create TestKeyspaceName
 $ go run Server/server.go delete TestKeyspaceName
 
+# Create the table in Scylla (the next block of commands should be run in Scylla's exec)
+$ cqlsh
+$ USE testkeyspacename;
+$ CREATE TABLE email_data (label INT, text TEXT PRIMARY KEY);
+
 # Running Each of the individual clients
 $ python education_client.py <csv_file_path> --address <server_address> --port <port_number> <arg>
 # i.e for python clients
@@ -49,3 +54,7 @@ $ python3 Client/edu_client.py data/education_data.csv
 # i.e Add all emails / delete all emails
 $ python3 Client/email_client.py data/email_data.csv
 $ python3 Client/email_client.py data/email_data.csv --delete
+
+
+# When complete: you can remove the table in Scylla exec until we do complete drop
+$ DROP TABLE testkeyspacename.email_data;
