@@ -138,7 +138,6 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 			return &Routes.ProtobufInsertResponse{Errs: []string{err.Error()}}, err // return the error to client in a list of strings
 		}
 		messages = append(messages, msg) // add new protobuf to list of messages to handle
-		//log.Printf("Insert request recieved")
 	}
 
 	// TODO: MAYBE put this in another GOROUTINE ?, locks might interfere with some of the asynchronous work
