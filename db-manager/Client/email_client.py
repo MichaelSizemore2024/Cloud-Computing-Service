@@ -40,9 +40,13 @@ def run(csv_file_path, server_address='localhost', server_port=50051):
 
         # Read and send data from the CSV file
         for email_data in read_csv(csv_file_path): 
+            serial_data = email_data.SerializeToString()
+            type_url = f"EmailData" # this is needed if we define a package in the proto then it  would be the packagename.EmailData or packagename.email_pb2.EmailData
+            anypb_msg = any_pb2.Any(value=serial_data, type_url=type_url)
+            
             request = generic_pb2.protobuf_insert_request(
-                keyspace="keyspace",
-                protobufs=[any_pb2.Any(value=email_data.SerializeToString())]
+                keyspace="testks",
+                protobufs=[anypb_msg] 
             )
             response = stub.Insert(request)
             print(f"Server Response: {response.errs}")

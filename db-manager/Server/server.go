@@ -7,19 +7,18 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 
-	// "reflect"
-	"strconv"
+	//"reflect"
 	"sync"
 
-	"github.com/gocql/gocql" // For scylla
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/gocql/gocql" // for scylla
 
 	Routes "dbmanager/common" // Import the generated code
 
 	"google.golang.org/grpc"
-	// "google.golang.org/grpc/reflection"
-	// "google.golang.org/protobuf/types/known/anypb" // import ANY class for future use
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // variabels that can be passed in via command line such as --port=50051 or -port=50051
@@ -102,98 +101,137 @@ func (server *server) deleteKeyspace(keyspaceName string) error {
 	return nil
 }
 
-// GetData implements the GetData RPC method
-func (s *server) DeleteAllEmail(ctx context.Context, request *empty.Empty) (*Routes.ProtobufInsertResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Create a session to interact with the database
-	session, err := s.cluster.CreateSession()
-	if err != nil {
-		log.Printf("Error creating session: %v", err)
-		return nil, err
+// helper method that maps protobuf.Kind and protobuf.Value toCQL data types
+func convertKindAndValueToCQL(fieldType protoreflect.Kind, value protoreflect.Value) (string, interface{}) {
+	switch fieldType {
+	case protoreflect.BoolKind:
+		return "BOOLEAN", value.Bool()
+	case protoreflect.EnumKind, protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind,
+		protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		return "INT", value.Int()
+	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind,
+		protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return "BIGINT", value.Int()
+	case protoreflect.FloatKind:
+		return "FLOAT", value.Float()
+	case protoreflect.DoubleKind:
+		return "DOUBLE", value.Float()
+	case protoreflect.StringKind:
+		return "TEXT", value.String()
+	case protoreflect.BytesKind:
+		return "BLOB", value.Bytes()
+	//case protoreflect.GroupKind, protoreflect.MessageKind: not sure what do do with these yet
+	default: // TODO: unsure what todo with unkown types, CQL lets us create our own types we could do that
+		return "UNKNOWN", nil
 	}
-	defer session.Close()
-
-	// Delete all email data in the database
-	emailDropTableQuery := fmt.Sprintf("DROP TABLE %s.%s;", "testkeyspacename", "email_data") // Keyspace and table name
-	emailCreateTableQuery := fmt.Sprintf("CREATE TABLE %s.%s (label INT, text TEXT PRIMARY KEY);", "testkeyspacename", "email_data")
-
-	if err := session.Query(emailDropTableQuery).Exec(); err != nil {
-		log.Printf("Error DROP TABLE: %v", err)
-		return nil, err
-	}
-	if err := session.Query(emailCreateTableQuery).Exec(); err != nil {
-		log.Printf("Error CREATE TABLE: %v", err)
-		return nil, err
-	}
-
-	return &Routes.ProtobufInsertResponse{Errs: []string{"All emails deleted successfully"}}, nil
 }
 
 // Handle insert requests
+// TODO: maybe use slog package for cleaner/detailed print statements
 func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertRequest) (*Routes.ProtobufInsertResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	// need to lock during data handling
 
-	// var messages []protoreflect.ProtoMessage
-	// for _, any := range request.Protobufs {
-	// 	msg, err := any.UnmarshalNew() // Unmarshal each Any message to a ProtoMessage
-	// 	if err != nil {
-	// 		return &Routes.ProtobufInsertResponse{Errs: []string{err.Error()}}, err // return the error to client in a list of strings
-	// 	}
-	// 	messages = append(messages, msg) // add new protobuf to list of messages to handle
-	// }
+	messages := []protoreflect.ProtoMessage{} // create emtpy list of proto messages
+	for _, any := range request.Protobufs {
+		msg, err := any.UnmarshalNew() // Unmarshal each Any message to a ProtoMessage
+		if err != nil {
+			return &Routes.ProtobufInsertResponse{Errs: []string{err.Error()}}, err // return the error to client in a list of strings
+		}
+		messages = append(messages, msg) // add new protobuf to list of messages to handle
+		//log.Printf("Insert request recieved")
+	}
 
-	// for _, m := range messages {
-	// 	fmt.Printf("\nprotobuf: %s", m.ProtoReflect().Descriptor().Syntax().String())
-	// }
+	// TODO: MAYBE put this in another GOROUTINE ?, locks might interfere with some of the asynchronous work
+	// loop over all protobufs received and process them
+	for _, m := range messages {
+		msg_desc := m.ProtoReflect().Descriptor() // find the message descriptor
+		fields := msg_desc.Fields()               // get all the fields in the proto message
 
-	return &Routes.ProtobufInsertResponse{Errs: []string{"Messaged Accpected"}}, nil
+		queryCols := []string{}                          // list of strings to use strings.Join later for our column names to insert into table
+		queryQms := []string{}                           // just to keep track of ?'s in the query to add
+		values := []interface{}{gocql.TimeUUID()}        // all the values of each field, input for a variadic function/var, timeUUID for uniqie primary key for now
+		queryColTypes := []string{`id UUID PRIMARY KEY`} // for CREATE TABLE, generate the id with the curr datetime to make it unique
+
+		// loop over each field and infer data
+		for i := 0; i < fields.Len(); i++ {
+			curField := fields.Get(i)
+
+			queryCols = append(queryCols, string(curField.FullName().Name())) // append the field name to our col list
+			queryQms = append(queryQms, "?")                                  // append ?'s for values portion of cql cmds
+
+			convertedType, convertedValue := convertKindAndValueToCQL(curField.Kind(), m.ProtoReflect().Get(curField))
+			values = append(values, convertedValue)                                                     // get the value of the field
+			queryColTypes = append(queryColTypes, fmt.Sprintf("%s %s", curField.Name(), convertedType)) // NAME TYPE for CQL create table
+		}
+
+		s.mu.Lock() // need to lock here
+		defer s.mu.Unlock()
+
+		// Create a session to interact with the database
+		session, err := s.cluster.CreateSession()
+		if err != nil {
+			log.Printf("Error opening cluster session")
+			return nil, err
+		}
+		defer session.Close()
+
+		// put together insert query
+		tableName := msg_desc.Name()
+		ks := request.Keyspace
+
+		// Create the keyspace if it does not exist, note ` vs " matters
+		// TODO: CHANGE CLASS AND REPLICATION FACTOR TO ?
+		ksQuery := fmt.Sprintf(`CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy','replication_factor': 3}`, ks)
+		if ksQueryErr := session.Query(ksQuery).Exec(); ksQueryErr != nil {
+			log.Printf("Error creating keyspace: %s\n query: %s", ksQueryErr, ksQuery)
+			return &Routes.ProtobufInsertResponse{Errs: []string{ksQueryErr.Error()}}, ksQueryErr
+		}
+
+		// now create a table if it does not exist
+		// sometimes cql could try to insert a reserved keyword as a column name and it wont work?
+		tableQuery := fmt.Sprint(`CREATE TABLE IF NOT EXISTS `, ks, `.`, tableName, ` (`, strings.Join(queryColTypes, `, `), `)`)
+		if tableQueryErr := session.Query(tableQuery).Exec(); tableQueryErr != nil {
+			log.Printf("Error creating table: %s\n query: %s", tableQueryErr, tableQuery)
+			return &Routes.ProtobufInsertResponse{Errs: []string{tableQueryErr.Error()}}, tableQueryErr
+		}
+
+		// handle dynamic insert query
+		insertQuery := fmt.Sprint(`INSERT INTO `, ks, `.`, tableName, ` (id, `, strings.Join(queryCols, `, `), `) VALUES (?, `, strings.Join(queryQms, `, `), `)`) // strings.Join is a nice method
+		if insertQueryErr := session.Query(insertQuery, values...).Exec(); insertQueryErr != nil {                                                                 // look up Variadic Functions for more on the ... syntax
+			log.Printf("Error inserting data: %s\n query: %s", insertQueryErr, insertQuery)
+			return &Routes.ProtobufInsertResponse{Errs: []string{insertQueryErr.Error()}}, insertQueryErr
+		}
+	}
+
+	return &Routes.ProtobufInsertResponse{Errs: []string{}}, nil
 }
 
+// TODO: strip away arg code to just use flags
 func main() {
 	flag.Parse()
 
-	if len(os.Args) > 3 {
-		fmt.Println("Usage: go run server.go <create|delete|grpc> <arg>")
+	if len(os.Args) != 3 {
+		fmt.Println("Usage: go run main.go <create|delete|grpc> <keyspace_name>")
 		os.Exit(1)
 	}
 
 	action := os.Args[1]
+	keyspaceName := os.Args[2]
 
 	dbserver := NewServer()
 
 	switch action {
 	case "create":
-		keyspaceName := os.Args[2]
 		err := dbserver.createKeyspace(keyspaceName)
 		if err != nil {
 			log.Fatalf("Error creating keyspace: %v", err)
 		}
 	case "delete":
-		keyspaceName := os.Args[2]
 		err := dbserver.deleteKeyspace(keyspaceName)
 		if err != nil {
 			log.Fatalf("Error deleting keyspace: %v", err)
 		}
 	case "grpc":
-		if len(os.Args) > 2 {
-			argFlag := os.Args[2]
-			if argFlag != "" {
-				// If arg[2] is not empty, try to convert it to an int and set the port
-				parsedPort, err := strconv.Atoi(argFlag)
-				if err != nil {
-					log.Fatalf("failed to parse port: %v", err)
-				}
-				*port = parsedPort
-			}
-		} else {
-			fmt.Println("Using default port.")
-			// Set your default port here, for example:
-			*port = 50051
-		}
-
 		// Create a TCP listener on port var
 		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 		if err != nil {
@@ -202,6 +240,7 @@ func main() {
 
 		// Create a new gRPC server
 		grpcServer := grpc.NewServer()
+		reflection.Register(grpcServer)
 		// Register the DataRoute service implementation with the server
 		Routes.RegisterDB_InserterServer(grpcServer, dbserver)
 
@@ -213,7 +252,7 @@ func main() {
 			}
 		}()
 
-		// Blocks to keep server running
+		// blocks to keep server running
 		select {}
 	default:
 		fmt.Println("Invalid action. Use 'create', 'delete', or 'grpc'.")

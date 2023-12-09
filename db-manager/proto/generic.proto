@@ -8,7 +8,6 @@ option go_package = "../common";
 message protobuf_insert_request {
     string keyspace = 1;
     repeated google.protobuf.Any protobufs = 2;
-    //repeated string servers = 3;
 }
  
 message protobuf_insert_response {

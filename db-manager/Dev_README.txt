@@ -38,5 +38,5 @@ $ python3 Client/email_client.py data/email_data.csv
 $ python3 Client/email_client.py data/email_data.csv --delete
 
 
-# When complete: you can remove the table in Scylla exec until we do complete drop
-$ DROP TABLE testkeyspacename.email_data;
+# When complete: you can delete the keyspace that is made
+$ DROP keyspace testks;
