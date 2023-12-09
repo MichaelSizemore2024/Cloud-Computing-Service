@@ -1,0 +1,2 @@
+# ignore all the build files for grpc
+db-manager/common
