@@ -7,27 +7,15 @@ $ export PATH="$PATH:$(go env GOPATH)/bin"
 # Cleanup
 $ go mod tidy
 
-# Compile education.proto
-$ python3 -m grpc_tools.protoc --proto_path=./proto --python_out=common --grpc_python_out=common proto/education.proto
-$ protoc --go_out=common --go-grpc_out=common proto/education.proto
 
-# Compile email.proto
-$ python3 -m grpc_tools.protoc --proto_path=./proto --python_out=common --grpc_python_out=common proto/email.proto
-$ protoc --go_out=common --go-grpc_out=common proto/email.proto
+
+## Execution ##
 
 # Running the server
-$ go run Server/server.go <create|delete|grpc> <arg>
+$ go run Server/server.go <port>
 # i.e for grpc server
-$ go run Server/server.go grpc
-$ go run Server/server.go grpc 50052
-# i.e for keyspace
-$ go run Server/server.go create TestKeyspaceName
-$ go run Server/server.go delete TestKeyspaceName
-
-# Create the table in Scylla (the next block of commands should be run in Scylla's exec)
-$ cqlsh
-$ USE testkeyspacename;
-$ CREATE TABLE email_data (label INT, text TEXT PRIMARY KEY);
+$ go run Server/server.go
+$ go run Server/server.go -port=50052
 
 # Running Each of the individual clients
 $ python education_client.py <csv_file_path> --address <server_address> --port <port_number> <arg>
@@ -38,5 +26,27 @@ $ python3 Client/email_client.py data/email_data.csv
 $ python3 Client/email_client.py data/email_data.csv --delete
 
 
-# When complete: you can delete the keyspace that is made
+
+## Handled in Makefile ##
+
+# Compile education.proto
+$ python3 -m grpc_tools.protoc --proto_path=./proto --python_out=common --grpc_python_out=common proto/education.proto
+$ protoc --go_out=common --go-grpc_out=common proto/education.proto
+
+# Compile email.proto
+$ python3 -m grpc_tools.protoc --proto_path=./proto --python_out=common --grpc_python_out=common proto/email.proto
+$ protoc --go_out=common --go-grpc_out=common proto/email.proto
+
+# Compile generic.proto
+$ python3 -m grpc_tools.protoc --proto_path=./proto --python_out=common --grpc_python_out=common proto/generic.proto
+$ protoc --go_out=common --go-grpc_out=common proto/generic.proto
+
+
+
+## Scylla EXEC cmds ##
+
+$ cqlsh // 172.20.0.3 9042 //
+$ CREATE KEYSPACE IF NOT EXISTS testks WITH replication = {'class': 'SimpleStrategy','replication_factor': 3};
+$ USE testks;
+$ CREATE TABLE emaildata (label INT, text TEXT PRIMARY KEY);
 $ DROP keyspace testks;
