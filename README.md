@@ -7,12 +7,12 @@
 - [ ] Download and open DBeaver
 - [ ] Select Database > Driver Manager
 - [ ] Search for Trino
-- [ ] Double click on the Trino rabbit and select Copy:
+- [ ] Click on the Trino rabbit and select Copy:
 	- [ ] Settings: Port 8085 (or whatever port is on Docker trino)
 		- [ ] Default User: user
-		- [ ] Eefault Database: cassandra
+		- [ ] Default Database: cassandra
 	- [ ] Libraries: Download/Update button
-		- [ ] Popup select Download
+		- [ ] Select Download after automatic loading
 - [ ] Select Database > New Database Connection
 	- [ ] Select Trino Copy > Finish
 
