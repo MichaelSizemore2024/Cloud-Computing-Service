@@ -7,15 +7,13 @@ $ export PATH="$PATH:$(go env GOPATH)/bin"
 # Cleanup
 $ go mod tidy
 
-
-
 ## Execution ##
 
 # Running the server
 $ go run Server/server.go <port>
 # i.e for grpc server
 $ go run Server/server.go
-$ go run Server/server.go -port=50052
+$ go run Server/server.go -port=50051
 
 # Running Each of the individual clients
 $ python education_client.py <csv_file_path> --address <server_address> --port <port_number> <arg>
@@ -45,7 +43,7 @@ $ protoc --go_out=common --go-grpc_out=common proto/generic.proto
 
 ## Scylla EXEC cmds ##
 
-$ cqlsh // 172.20.0.3 9042 //
+$ cqlsh // 172.20.0.3 9042 // (check logs for specific IP)
 $ CREATE KEYSPACE IF NOT EXISTS testks WITH replication = {'class': 'SimpleStrategy','replication_factor': 3};
 $ USE testks;
 $ CREATE TABLE emaildata (label INT, text TEXT PRIMARY KEY);

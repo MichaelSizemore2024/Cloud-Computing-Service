@@ -32,24 +32,58 @@ def read_csv(file_path):
             )
             yield education_data
 
-def run(csv_file_path, server_address='localhost', server_port=50051):
+def addAll(csv_file_path, server_address='localhost', server_port=50051):
     # Connect to the gRPC server
     with grpc.insecure_channel(f'{server_address}:{server_port}') as channel:
-        # Create a stub (client)
-        stub = generic_pb2_grpc.DB_InserterStub(channel)
+        # Create a stub (client) for the DBGeneric service
+        stub = generic_pb2_grpc.DBGenericStub(channel)  # Updated service name here
 
         # Read and send data from the CSV file
         for education_data in read_csv(csv_file_path):
             serial_data = education_data.SerializeToString()
-            type_url = f"EducationData" # this is needed if we define a package in the proto then it  would be the packagename.EmailData or packagename.email_pb2.EmailData
+            type_url = f"EducationData"
             anypb_msg = any_pb2.Any(value=serial_data, type_url=type_url)
 
             request = generic_pb2.protobuf_insert_request(
                 keyspace="testks",
-                protobufs=[anypb_msg] 
+                protobufs=[anypb_msg]
             )
             response = stub.Insert(request)
             print(f"Server Response: {response.errs}")
+
+def dropTable(server_address='localhost', server_port=50051):
+    # Connect to the gRPC server
+    with grpc.insecure_channel(f'{server_address}:{server_port}') as channel:
+        # Create a stub (client) for the generic service
+        stub = generic_pb2_grpc.DBGenericStub(channel)
+
+        # Create a delete request
+        droptable_request = generic_pb2.protobuf_droptable_request(
+            keyspace="testks",
+            table="EducationData"
+        )
+
+        # Send the delete request
+        response = stub.DropTable(droptable_request)
+        print(f"Server Response: {response.errs}")
+
+def delete(server_address='localhost', server_port=50051, table_col=None, col_constraint=None):
+    # Connect to the gRPC server
+    with grpc.insecure_channel(f'{server_address}:{server_port}') as channel:
+        # Create a stub (client) for the generic service
+        stub = generic_pb2_grpc.DBGenericStub(channel)
+
+        # Create a delete request
+        delete_request = generic_pb2.protobuf_delete_request(
+            keyspace="testks",
+            table="educationdata",
+            column = table_col,
+            constraint = col_constraint
+        )
+
+        # Send the delete request
+        response = stub.Delete(delete_request)
+        print(f"Server Response: {response.errs}")
 
 if __name__ == '__main__':
     # Use argparse to handle command-line arguments
@@ -60,5 +94,29 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # Runs the program with the provided arguments
-    run(args.csv_file_path, server_address=args.address, server_port=args.port)
+    print("Client listening at port: {}".format(args.port))  # Print the initial message
+
+    while True:
+        # Ask the user for a specific flag
+        flag = input("Enter a specific flag <AddAll, Delete, DeleteAll, Query, Exit>: ").lower()
+
+        # Check the entered flag and execute the corresponding task
+        if flag == 'addall':
+            addAll(args.csv_file_path, server_address=args.address, server_port=args.port)
+        elif flag == 'delete':
+            column = input("Enter a specific column: ")
+            constraint = input("Enter a constraint: ")
+            delete(server_address=args.address, server_port=args.port, table_col = column, col_constraint = constraint)
+            pass
+        elif flag == 'deleteall':
+            dropTable(server_address=args.address, server_port=args.port)
+            pass
+        elif flag == 'query':
+            # Add the implementation for the 'Query' task
+            print("Unimplemented")
+            pass
+        elif flag == 'exit':
+            print("Exited Client.")
+            break
+        else:
+            print("Invalid flag. Please enter a valid flag.")

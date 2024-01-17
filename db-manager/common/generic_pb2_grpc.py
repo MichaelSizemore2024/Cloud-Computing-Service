@@ -5,7 +5,7 @@ import grpc
 import generic_pb2 as generic__pb2
 
 
-class DB_InserterStub(object):
+class DBGenericStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -15,13 +15,23 @@ class DB_InserterStub(object):
             channel: A grpc.Channel.
         """
         self.Insert = channel.unary_unary(
-                '/DB_Inserter/Insert',
+                '/DBGeneric/Insert',
                 request_serializer=generic__pb2.protobuf_insert_request.SerializeToString,
                 response_deserializer=generic__pb2.protobuf_insert_response.FromString,
                 )
+        self.Delete = channel.unary_unary(
+                '/DBGeneric/Delete',
+                request_serializer=generic__pb2.protobuf_delete_request.SerializeToString,
+                response_deserializer=generic__pb2.protobuf_delete_response.FromString,
+                )
+        self.DropTable = channel.unary_unary(
+                '/DBGeneric/DropTable',
+                request_serializer=generic__pb2.protobuf_droptable_request.SerializeToString,
+                response_deserializer=generic__pb2.protobuf_droptable_response.FromString,
+                )
 
 
-class DB_InserterServicer(object):
+class DBGenericServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Insert(self, request, context):
@@ -30,22 +40,44 @@ class DB_InserterServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Delete(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
-def add_DB_InserterServicer_to_server(servicer, server):
+    def DropTable(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+
+def add_DBGenericServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Insert': grpc.unary_unary_rpc_method_handler(
                     servicer.Insert,
                     request_deserializer=generic__pb2.protobuf_insert_request.FromString,
                     response_serializer=generic__pb2.protobuf_insert_response.SerializeToString,
             ),
+            'Delete': grpc.unary_unary_rpc_method_handler(
+                    servicer.Delete,
+                    request_deserializer=generic__pb2.protobuf_delete_request.FromString,
+                    response_serializer=generic__pb2.protobuf_delete_response.SerializeToString,
+            ),
+            'DropTable': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropTable,
+                    request_deserializer=generic__pb2.protobuf_droptable_request.FromString,
+                    response_serializer=generic__pb2.protobuf_droptable_response.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'DB_Inserter', rpc_method_handlers)
+            'DBGeneric', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
  # This class is part of an EXPERIMENTAL API.
-class DB_Inserter(object):
+class DBGeneric(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -59,8 +91,42 @@ class DB_Inserter(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/DB_Inserter/Insert',
+        return grpc.experimental.unary_unary(request, target, '/DBGeneric/Insert',
             generic__pb2.protobuf_insert_request.SerializeToString,
             generic__pb2.protobuf_insert_response.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Delete(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/DBGeneric/Delete',
+            generic__pb2.protobuf_delete_request.SerializeToString,
+            generic__pb2.protobuf_delete_response.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def DropTable(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/DBGeneric/DropTable',
+            generic__pb2.protobuf_droptable_request.SerializeToString,
+            generic__pb2.protobuf_droptable_response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

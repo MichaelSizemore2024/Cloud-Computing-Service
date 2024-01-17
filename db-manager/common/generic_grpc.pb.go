@@ -18,86 +18,158 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// DB_InserterClient is the client API for DB_Inserter service.
+// DBGenericClient is the client API for DBGeneric service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type DB_InserterClient interface {
+type DBGenericClient interface {
 	Insert(ctx context.Context, in *ProtobufInsertRequest, opts ...grpc.CallOption) (*ProtobufInsertResponse, error)
+	Delete(ctx context.Context, in *ProtobufDeleteRequest, opts ...grpc.CallOption) (*ProtobufDeleteResponse, error)
+	DropTable(ctx context.Context, in *ProtobufDroptableRequest, opts ...grpc.CallOption) (*ProtobufDroptableResponse, error)
 }
 
-type dB_InserterClient struct {
+type dBGenericClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewDB_InserterClient(cc grpc.ClientConnInterface) DB_InserterClient {
-	return &dB_InserterClient{cc}
+func NewDBGenericClient(cc grpc.ClientConnInterface) DBGenericClient {
+	return &dBGenericClient{cc}
 }
 
-func (c *dB_InserterClient) Insert(ctx context.Context, in *ProtobufInsertRequest, opts ...grpc.CallOption) (*ProtobufInsertResponse, error) {
+func (c *dBGenericClient) Insert(ctx context.Context, in *ProtobufInsertRequest, opts ...grpc.CallOption) (*ProtobufInsertResponse, error) {
 	out := new(ProtobufInsertResponse)
-	err := c.cc.Invoke(ctx, "/DB_Inserter/Insert", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/DBGeneric/Insert", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// DB_InserterServer is the server API for DB_Inserter service.
-// All implementations must embed UnimplementedDB_InserterServer
+func (c *dBGenericClient) Delete(ctx context.Context, in *ProtobufDeleteRequest, opts ...grpc.CallOption) (*ProtobufDeleteResponse, error) {
+	out := new(ProtobufDeleteResponse)
+	err := c.cc.Invoke(ctx, "/DBGeneric/Delete", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dBGenericClient) DropTable(ctx context.Context, in *ProtobufDroptableRequest, opts ...grpc.CallOption) (*ProtobufDroptableResponse, error) {
+	out := new(ProtobufDroptableResponse)
+	err := c.cc.Invoke(ctx, "/DBGeneric/DropTable", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// DBGenericServer is the server API for DBGeneric service.
+// All implementations must embed UnimplementedDBGenericServer
 // for forward compatibility
-type DB_InserterServer interface {
+type DBGenericServer interface {
 	Insert(context.Context, *ProtobufInsertRequest) (*ProtobufInsertResponse, error)
-	mustEmbedUnimplementedDB_InserterServer()
+	Delete(context.Context, *ProtobufDeleteRequest) (*ProtobufDeleteResponse, error)
+	DropTable(context.Context, *ProtobufDroptableRequest) (*ProtobufDroptableResponse, error)
+	mustEmbedUnimplementedDBGenericServer()
 }
 
-// UnimplementedDB_InserterServer must be embedded to have forward compatible implementations.
-type UnimplementedDB_InserterServer struct {
+// UnimplementedDBGenericServer must be embedded to have forward compatible implementations.
+type UnimplementedDBGenericServer struct {
 }
 
-func (UnimplementedDB_InserterServer) Insert(context.Context, *ProtobufInsertRequest) (*ProtobufInsertResponse, error) {
+func (UnimplementedDBGenericServer) Insert(context.Context, *ProtobufInsertRequest) (*ProtobufInsertResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Insert not implemented")
 }
-func (UnimplementedDB_InserterServer) mustEmbedUnimplementedDB_InserterServer() {}
+func (UnimplementedDBGenericServer) Delete(context.Context, *ProtobufDeleteRequest) (*ProtobufDeleteResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedDBGenericServer) DropTable(context.Context, *ProtobufDroptableRequest) (*ProtobufDroptableResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DropTable not implemented")
+}
+func (UnimplementedDBGenericServer) mustEmbedUnimplementedDBGenericServer() {}
 
-// UnsafeDB_InserterServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to DB_InserterServer will
+// UnsafeDBGenericServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to DBGenericServer will
 // result in compilation errors.
-type UnsafeDB_InserterServer interface {
-	mustEmbedUnimplementedDB_InserterServer()
+type UnsafeDBGenericServer interface {
+	mustEmbedUnimplementedDBGenericServer()
 }
 
-func RegisterDB_InserterServer(s grpc.ServiceRegistrar, srv DB_InserterServer) {
-	s.RegisterService(&DB_Inserter_ServiceDesc, srv)
+func RegisterDBGenericServer(s grpc.ServiceRegistrar, srv DBGenericServer) {
+	s.RegisterService(&DBGeneric_ServiceDesc, srv)
 }
 
-func _DB_Inserter_Insert_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _DBGeneric_Insert_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ProtobufInsertRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(DB_InserterServer).Insert(ctx, in)
+		return srv.(DBGenericServer).Insert(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/DB_Inserter/Insert",
+		FullMethod: "/DBGeneric/Insert",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DB_InserterServer).Insert(ctx, req.(*ProtobufInsertRequest))
+		return srv.(DBGenericServer).Insert(ctx, req.(*ProtobufInsertRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// DB_Inserter_ServiceDesc is the grpc.ServiceDesc for DB_Inserter service.
+func _DBGeneric_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProtobufDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DBGenericServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DBGeneric/Delete",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DBGenericServer).Delete(ctx, req.(*ProtobufDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DBGeneric_DropTable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProtobufDroptableRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DBGenericServer).DropTable(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DBGeneric/DropTable",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DBGenericServer).DropTable(ctx, req.(*ProtobufDroptableRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// DBGeneric_ServiceDesc is the grpc.ServiceDesc for DBGeneric service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var DB_Inserter_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "DB_Inserter",
-	HandlerType: (*DB_InserterServer)(nil),
+var DBGeneric_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "DBGeneric",
+	HandlerType: (*DBGenericServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "Insert",
-			Handler:    _DB_Inserter_Insert_Handler,
+			Handler:    _DBGeneric_Insert_Handler,
+		},
+		{
+			MethodName: "Delete",
+			Handler:    _DBGeneric_Delete_Handler,
+		},
+		{
+			MethodName: "DropTable",
+			Handler:    _DBGeneric_DropTable_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
