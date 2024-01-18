@@ -288,6 +288,7 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	ks := request.Keyspace
 	column := request.Column
 	constraint := request.Constraint
+	updateValue := request.UpdateValue
 
 	// Create a session to interact with the database
 	session, err := s.cluster.CreateSession()
@@ -337,10 +338,10 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	for iter.Scan(&idValue) {
 		counter++
 		// Construct UPDATE query with parameter binding (id)
-		updateQuery := "UPDATE testks.EducationData SET birth_rate = 1.1 WHERE id = ?"
+		updateQuery := "UPDATE testks.EducationData SET " + column + "= ? WHERE id = ?"
 		
 		// Execute UPDATE query 
-		if updateErr := session.Query(updateQuery, idValue).Exec(); updateErr != nil {
+		if updateErr := session.Query(updateQuery, updateValue, idValue).Exec(); updateErr != nil {
 			log.Printf("Error deleting data: %s\n query: %s", updateErr, updateQuery)
 			return &Routes.ProtobufUpdateResponse{Errs: []string{updateErr.Error()}}, updateErr
 		}
