@@ -85,6 +85,24 @@ def delete(server_address='localhost', server_port=50051, table_col=None, col_co
         response = stub.Delete(delete_request)
         print(f"Server Response: {response.errs}")
 
+def update(server_address='localhost', server_port=50051, table_col=None, col_constraint=None):
+    # Connect to the gRPC server
+    with grpc.insecure_channel(f'{server_address}:{server_port}') as channel:
+        # Create a stub (client) for the generic service
+        stub = generic_pb2_grpc.DBGenericStub(channel)
+
+        # Create a update request
+        update_request = generic_pb2.protobuf_update_request(
+            keyspace="testks",
+            table="educationdata",
+            column = table_col,
+            constraint = col_constraint
+        )
+
+        # Send the update request
+        response = stub.Update(update_request)
+        print(f"Server Response: {response.errs}")
+
 if __name__ == '__main__':
     # Use argparse to handle command-line arguments
     parser = argparse.ArgumentParser(description='Education gRPC Client')
@@ -98,7 +116,7 @@ if __name__ == '__main__':
 
     while True:
         # Ask the user for a specific flag
-        flag = input("Enter a specific flag <AddAll, Delete, DeleteAll, Query, Exit>: ").lower()
+        flag = input("Enter a specific flag <AddAll, Delete, DeleteAll, Update, Query, Exit>: ").lower()
 
         # Check the entered flag and execute the corresponding task
         if flag == 'addall':
@@ -107,6 +125,11 @@ if __name__ == '__main__':
             column = input("Enter a specific column: ")
             constraint = input("Enter a constraint: ")
             delete(server_address=args.address, server_port=args.port, table_col = column, col_constraint = constraint)
+            pass
+        elif flag == 'update':
+            column = input("Enter a specific column: ")
+            constraint = input("Enter a constraint: ")
+            update(server_address=args.address, server_port=args.port, table_col = column, col_constraint = constraint)
             pass
         elif flag == 'deleteall':
             dropTable(server_address=args.address, server_port=args.port)

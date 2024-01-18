@@ -24,6 +24,11 @@ class DBGenericStub(object):
                 request_serializer=generic__pb2.protobuf_delete_request.SerializeToString,
                 response_deserializer=generic__pb2.protobuf_delete_response.FromString,
                 )
+        self.Update = channel.unary_unary(
+                '/DBGeneric/Update',
+                request_serializer=generic__pb2.protobuf_update_request.SerializeToString,
+                response_deserializer=generic__pb2.protobuf_update_response.FromString,
+                )
         self.DropTable = channel.unary_unary(
                 '/DBGeneric/DropTable',
                 request_serializer=generic__pb2.protobuf_droptable_request.SerializeToString,
@@ -41,6 +46,12 @@ class DBGenericServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def Delete(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Update(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -64,6 +75,11 @@ def add_DBGenericServicer_to_server(servicer, server):
                     servicer.Delete,
                     request_deserializer=generic__pb2.protobuf_delete_request.FromString,
                     response_serializer=generic__pb2.protobuf_delete_response.SerializeToString,
+            ),
+            'Update': grpc.unary_unary_rpc_method_handler(
+                    servicer.Update,
+                    request_deserializer=generic__pb2.protobuf_update_request.FromString,
+                    response_serializer=generic__pb2.protobuf_update_response.SerializeToString,
             ),
             'DropTable': grpc.unary_unary_rpc_method_handler(
                     servicer.DropTable,
@@ -111,6 +127,23 @@ class DBGeneric(object):
         return grpc.experimental.unary_unary(request, target, '/DBGeneric/Delete',
             generic__pb2.protobuf_delete_request.SerializeToString,
             generic__pb2.protobuf_delete_response.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def Update(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/DBGeneric/Update',
+            generic__pb2.protobuf_update_request.SerializeToString,
+            generic__pb2.protobuf_update_response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

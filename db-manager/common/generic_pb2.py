@@ -15,7 +15,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import any_pb2 as google_dot_protobuf_dot_any__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rgeneric.proto\x1a\x19google/protobuf/any.proto\"T\n\x17protobuf_insert_request\x12\x10\n\x08keyspace\x18\x01 \x01(\t\x12\'\n\tprotobufs\x18\x02 \x03(\x0b\x32\x14.google.protobuf.Any\"(\n\x18protobuf_insert_response\x12\x0c\n\x04\x65rrs\x18\x01 \x03(\t\"^\n\x17protobuf_delete_request\x12\x10\n\x08keyspace\x18\x01 \x01(\t\x12\r\n\x05table\x18\x02 \x01(\t\x12\x0e\n\x06\x63olumn\x18\x03 \x01(\t\x12\x12\n\nconstraint\x18\x04 \x01(\t\"(\n\x18protobuf_delete_response\x12\x0c\n\x04\x65rrs\x18\x01 \x03(\t\"=\n\x1aprotobuf_droptable_request\x12\x10\n\x08keyspace\x18\x01 \x01(\t\x12\r\n\x05table\x18\x02 \x01(\t\"+\n\x1bprotobuf_droptable_response\x12\x0c\n\x04\x65rrs\x18\x01 \x03(\t2\xd1\x01\n\tDBGeneric\x12=\n\x06Insert\x12\x18.protobuf_insert_request\x1a\x19.protobuf_insert_response\x12=\n\x06\x44\x65lete\x12\x18.protobuf_delete_request\x1a\x19.protobuf_delete_response\x12\x46\n\tDropTable\x12\x1b.protobuf_droptable_request\x1a\x1c.protobuf_droptable_responseB\x0bZ\t../commonb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\rgeneric.proto\x1a\x19google/protobuf/any.proto\"T\n\x17protobuf_insert_request\x12\x10\n\x08keyspace\x18\x01 \x01(\t\x12\'\n\tprotobufs\x18\x02 \x03(\x0b\x32\x14.google.protobuf.Any\"(\n\x18protobuf_insert_response\x12\x0c\n\x04\x65rrs\x18\x01 \x03(\t\"^\n\x17protobuf_delete_request\x12\x10\n\x08keyspace\x18\x01 \x01(\t\x12\r\n\x05table\x18\x02 \x01(\t\x12\x0e\n\x06\x63olumn\x18\x03 \x01(\t\x12\x12\n\nconstraint\x18\x04 \x01(\t\"(\n\x18protobuf_delete_response\x12\x0c\n\x04\x65rrs\x18\x01 \x03(\t\"^\n\x17protobuf_update_request\x12\x10\n\x08keyspace\x18\x01 \x01(\t\x12\r\n\x05table\x18\x02 \x01(\t\x12\x0e\n\x06\x63olumn\x18\x03 \x01(\t\x12\x12\n\nconstraint\x18\x04 \x01(\t\"(\n\x18protobuf_update_response\x12\x0c\n\x04\x65rrs\x18\x01 \x03(\t\"=\n\x1aprotobuf_droptable_request\x12\x10\n\x08keyspace\x18\x01 \x01(\t\x12\r\n\x05table\x18\x02 \x01(\t\"+\n\x1bprotobuf_droptable_response\x12\x0c\n\x04\x65rrs\x18\x01 \x03(\t2\x90\x02\n\tDBGeneric\x12=\n\x06Insert\x12\x18.protobuf_insert_request\x1a\x19.protobuf_insert_response\x12=\n\x06\x44\x65lete\x12\x18.protobuf_delete_request\x1a\x19.protobuf_delete_response\x12=\n\x06Update\x12\x18.protobuf_update_request\x1a\x19.protobuf_update_response\x12\x46\n\tDropTable\x12\x1b.protobuf_droptable_request\x1a\x1c.protobuf_droptable_responseB\x0bZ\t../commonb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -31,10 +31,14 @@ if _descriptor._USE_C_DESCRIPTORS == False:
   _globals['_PROTOBUF_DELETE_REQUEST']._serialized_end=266
   _globals['_PROTOBUF_DELETE_RESPONSE']._serialized_start=268
   _globals['_PROTOBUF_DELETE_RESPONSE']._serialized_end=308
-  _globals['_PROTOBUF_DROPTABLE_REQUEST']._serialized_start=310
-  _globals['_PROTOBUF_DROPTABLE_REQUEST']._serialized_end=371
-  _globals['_PROTOBUF_DROPTABLE_RESPONSE']._serialized_start=373
-  _globals['_PROTOBUF_DROPTABLE_RESPONSE']._serialized_end=416
-  _globals['_DBGENERIC']._serialized_start=419
-  _globals['_DBGENERIC']._serialized_end=628
+  _globals['_PROTOBUF_UPDATE_REQUEST']._serialized_start=310
+  _globals['_PROTOBUF_UPDATE_REQUEST']._serialized_end=404
+  _globals['_PROTOBUF_UPDATE_RESPONSE']._serialized_start=406
+  _globals['_PROTOBUF_UPDATE_RESPONSE']._serialized_end=446
+  _globals['_PROTOBUF_DROPTABLE_REQUEST']._serialized_start=448
+  _globals['_PROTOBUF_DROPTABLE_REQUEST']._serialized_end=509
+  _globals['_PROTOBUF_DROPTABLE_RESPONSE']._serialized_start=511
+  _globals['_PROTOBUF_DROPTABLE_RESPONSE']._serialized_end=554
+  _globals['_DBGENERIC']._serialized_start=557
+  _globals['_DBGENERIC']._serialized_end=829
 # @@protoc_insertion_point(module_scope)

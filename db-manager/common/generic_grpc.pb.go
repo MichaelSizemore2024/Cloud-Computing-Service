@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type DBGenericClient interface {
 	Insert(ctx context.Context, in *ProtobufInsertRequest, opts ...grpc.CallOption) (*ProtobufInsertResponse, error)
 	Delete(ctx context.Context, in *ProtobufDeleteRequest, opts ...grpc.CallOption) (*ProtobufDeleteResponse, error)
+	Update(ctx context.Context, in *ProtobufUpdateRequest, opts ...grpc.CallOption) (*ProtobufUpdateResponse, error)
 	DropTable(ctx context.Context, in *ProtobufDroptableRequest, opts ...grpc.CallOption) (*ProtobufDroptableResponse, error)
 }
 
@@ -53,6 +54,15 @@ func (c *dBGenericClient) Delete(ctx context.Context, in *ProtobufDeleteRequest,
 	return out, nil
 }
 
+func (c *dBGenericClient) Update(ctx context.Context, in *ProtobufUpdateRequest, opts ...grpc.CallOption) (*ProtobufUpdateResponse, error) {
+	out := new(ProtobufUpdateResponse)
+	err := c.cc.Invoke(ctx, "/DBGeneric/Update", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dBGenericClient) DropTable(ctx context.Context, in *ProtobufDroptableRequest, opts ...grpc.CallOption) (*ProtobufDroptableResponse, error) {
 	out := new(ProtobufDroptableResponse)
 	err := c.cc.Invoke(ctx, "/DBGeneric/DropTable", in, out, opts...)
@@ -68,6 +78,7 @@ func (c *dBGenericClient) DropTable(ctx context.Context, in *ProtobufDroptableRe
 type DBGenericServer interface {
 	Insert(context.Context, *ProtobufInsertRequest) (*ProtobufInsertResponse, error)
 	Delete(context.Context, *ProtobufDeleteRequest) (*ProtobufDeleteResponse, error)
+	Update(context.Context, *ProtobufUpdateRequest) (*ProtobufUpdateResponse, error)
 	DropTable(context.Context, *ProtobufDroptableRequest) (*ProtobufDroptableResponse, error)
 	mustEmbedUnimplementedDBGenericServer()
 }
@@ -81,6 +92,9 @@ func (UnimplementedDBGenericServer) Insert(context.Context, *ProtobufInsertReque
 }
 func (UnimplementedDBGenericServer) Delete(context.Context, *ProtobufDeleteRequest) (*ProtobufDeleteResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedDBGenericServer) Update(context.Context, *ProtobufUpdateRequest) (*ProtobufUpdateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Update not implemented")
 }
 func (UnimplementedDBGenericServer) DropTable(context.Context, *ProtobufDroptableRequest) (*ProtobufDroptableResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DropTable not implemented")
@@ -134,6 +148,24 @@ func _DBGeneric_Delete_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DBGeneric_Update_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ProtobufUpdateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DBGenericServer).Update(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/DBGeneric/Update",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DBGenericServer).Update(ctx, req.(*ProtobufUpdateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _DBGeneric_DropTable_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ProtobufDroptableRequest)
 	if err := dec(in); err != nil {
@@ -166,6 +198,10 @@ var DBGeneric_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delete",
 			Handler:    _DBGeneric_Delete_Handler,
+		},
+		{
+			MethodName: "Update",
+			Handler:    _DBGeneric_Update_Handler,
 		},
 		{
 			MethodName: "DropTable",

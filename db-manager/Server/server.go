@@ -278,6 +278,86 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	return &Routes.ProtobufDeleteResponse{}, nil
 }
 
+// Handle UPDATE requests
+func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateRequest) (*Routes.ProtobufUpdateResponse, error) {
+	s.mu.Lock() // need to lock here
+	defer s.mu.Unlock()
+
+
+	tableName := request.Table
+	ks := request.Keyspace
+	column := request.Column
+	constraint := request.Constraint
+
+	// Create a session to interact with the database
+	session, err := s.cluster.CreateSession()
+	if err != nil {
+		log.Printf("Error opening cluster session")
+		return nil, err
+	}
+	defer session.Close()
+
+	// Create index so we can search through contraints (otherwise we can only search via PK)
+	indexQuery := fmt.Sprint("CREATE INDEX IF NOT EXISTS ON ", ks, ".", tableName, "(", column, ")")
+	if indexErr := session.Query(indexQuery).Exec(); indexErr != nil {
+		log.Printf("Error creating index: %s\n query: %s", indexErr, indexQuery)
+		return &Routes.ProtobufUpdateResponse{Errs: []string{indexErr.Error()}}, indexErr
+	}
+
+	// Gets the value type of the column being used
+	// Might remove this if we change how the condition is passed in
+	columnType, err := getColumnType(session, ks, tableName, column)
+	if err != nil {
+		log.Printf("Error getting column type: %s", err)
+		return &Routes.ProtobufUpdateResponse{Errs: []string{err.Error()}}, err
+	}
+ 
+	// Changes the query depending on the type (quotes or no quotes)
+	// Will need to add new types as we try different things
+	// Might remove this if we change how the condition is passed in, parameter binding doesn't work unless casted
+	var selectQuery string
+	switch columnType {
+	case "text", "blob", "boolean", "varchar":
+		// Selects all the id's that meet the condition
+		selectQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
+	case "int", "bigint", "float", "double", "uuid":
+		selectQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
+	}
+
+	// Execute query
+	iter := session.Query(selectQuery).Iter()
+
+	// Declare a variable to store the ids in the loop
+	var idValue string
+		
+	// Creates counter to keep track # updated
+	counter := 0
+		
+	// Loops through returned IDs
+	for iter.Scan(&idValue) {
+		counter++
+		// Construct UPDATE query with parameter binding (id)
+		updateQuery := "UPDATE testks.EducationData SET birth_rate = 1.1 WHERE id = ?"
+		
+		// Execute UPDATE query 
+		if updateErr := session.Query(updateQuery, idValue).Exec(); updateErr != nil {
+			log.Printf("Error deleting data: %s\n query: %s", updateErr, updateQuery)
+			return &Routes.ProtobufUpdateResponse{Errs: []string{updateErr.Error()}}, updateErr
+		}
+	}
+		
+	// Check for errors from the iteration
+	if err := iter.Close(); err != nil {
+		log.Printf("Error iterating over result: %s\n query: %s", err, selectQuery)
+		return &Routes.ProtobufUpdateResponse{Errs: []string{err.Error()}}, err
+	}
+
+	// Prints out total # of rows updated, useful for debug can prob be removed in the future
+	fmt.Println("Updated", counter, "entries")
+
+	return &Routes.ProtobufUpdateResponse{}, nil
+}
+
 // TODO: Create error checking for cmd
 func main() {
 	flag.Parse()

@@ -24,6 +24,17 @@ message protobuf_delete_response {
     repeated string errs = 1;
 }
 
+// Update data
+message protobuf_update_request {
+    string keyspace = 1;
+    string table = 2;
+    string column = 3;
+    string constraint = 4;
+}
+message protobuf_update_response {
+    repeated string errs = 1;
+}
+
 // Drop Table (clear data)
 message protobuf_droptable_request {
     string keyspace = 1;
@@ -36,5 +47,6 @@ message protobuf_droptable_response {
 service DBGeneric {
     rpc Insert(protobuf_insert_request) returns (protobuf_insert_response);
     rpc Delete(protobuf_delete_request) returns (protobuf_delete_response);
+    rpc Update(protobuf_update_request) returns (protobuf_update_response);
     rpc DropTable(protobuf_droptable_request) returns (protobuf_droptable_response);
 }
