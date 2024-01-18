@@ -85,7 +85,7 @@ def delete(server_address='localhost', server_port=50051, table_col=None, col_co
         response = stub.Delete(delete_request)
         print(f"Server Response: {response.errs}")
 
-def update(server_address='localhost', server_port=50051, table_col=None, col_constraint=None, valueToUpdate=None):
+def update(server_address='localhost', server_port=50051, table_col=None, col_constraint=None):
     # Connect to the gRPC server
     with grpc.insecure_channel(f'{server_address}:{server_port}') as channel:
         # Create a stub (client) for the generic service
@@ -97,7 +97,6 @@ def update(server_address='localhost', server_port=50051, table_col=None, col_co
             table="educationdata",
             column = table_col,
             constraint = col_constraint,
-            updateValue = valueToUpdate
         )
 
         # Send the update request
@@ -130,8 +129,7 @@ if __name__ == '__main__':
         elif flag == 'update':
             column = input("Enter a specific column: ")
             constraint = input("Enter a constraint: ")
-            updateValue = input("Enter the value to update to")
-            update(server_address=args.address, server_port=args.port, table_col = column, col_constraint = constraint, valueToUpdate = updateValue)
+            update(server_address=args.address, server_port=args.port, table_col = column, col_constraint = constraint)
             pass
         elif flag == 'deleteall':
             dropTable(server_address=args.address, server_port=args.port)

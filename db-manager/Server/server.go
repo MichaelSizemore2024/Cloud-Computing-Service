@@ -288,7 +288,6 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	ks := request.Keyspace
 	column := request.Column
 	constraint := request.Constraint
-	updateValue := request.UpdateValue
 
 	// Create a session to interact with the database
 	session, err := s.cluster.CreateSession()
@@ -330,6 +329,8 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 
 	// Declare a variable to store the ids in the loop
 	var idValue string
+
+	hardCodedVal := 10
 		
 	// Creates counter to keep track # updated
 	counter := 0
@@ -338,11 +339,12 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	for iter.Scan(&idValue) {
 		counter++
 		// Construct UPDATE query with parameter binding (id)
-		updateQuery := "UPDATE testks.EducationData SET " + column + "= ? WHERE id = ?"
+		updateQuery := fmt.Sprintf("UPDATE testks.EducationData SET %s = %s WHERE id = %s", column, anyToString(hardCodedVal), idValue)
+		//TODO: Protection if using wrong type of data for the column
 		
 		// Execute UPDATE query 
-		if updateErr := session.Query(updateQuery, updateValue, idValue).Exec(); updateErr != nil {
-			log.Printf("Error deleting data: %s\n query: %s", updateErr, updateQuery)
+		if updateErr := session.Query(updateQuery).Exec(); updateErr != nil {
+			log.Printf("Error updating data: %s\n query: %s", updateErr, updateQuery)
 			return &Routes.ProtobufUpdateResponse{Errs: []string{updateErr.Error()}}, updateErr
 		}
 	}
@@ -357,6 +359,11 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	fmt.Println("Updated", counter, "entries")
 
 	return &Routes.ProtobufUpdateResponse{}, nil
+}
+
+//Temporary function to convert hard coded update value to a string
+func anyToString(value interface{}) string {
+    return fmt.Sprintf("%v", value)
 }
 
 // TODO: Create error checking for cmd
