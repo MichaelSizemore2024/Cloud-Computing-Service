@@ -30,6 +30,7 @@ message protobuf_update_request {
     string table = 2;
     string column = 3;
     string constraint = 4;
+    string new_value = 5;
 }
 message protobuf_update_response {
     repeated string errs = 1;

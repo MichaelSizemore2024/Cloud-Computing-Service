@@ -203,7 +203,6 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	s.mu.Lock() // need to lock here
 	defer s.mu.Unlock()
 
-
 	tableName := request.Table
 	ks := request.Keyspace
 	column := request.Column
@@ -288,6 +287,7 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	ks := request.Keyspace
 	column := request.Column
 	constraint := request.Constraint
+	newValue := request.NewValue
 
 	// Create a session to interact with the database
 	session, err := s.cluster.CreateSession()
@@ -329,8 +329,6 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 
 	// Declare a variable to store the ids in the loop
 	var idValue string
-
-	hardCodedVal := 10
 		
 	// Creates counter to keep track # updated
 	counter := 0
@@ -339,7 +337,15 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	for iter.Scan(&idValue) {
 		counter++
 		// Construct UPDATE query with parameter binding (id)
-		updateQuery := fmt.Sprintf("UPDATE testks.EducationData SET %s = %s WHERE id = %s", column, anyToString(hardCodedVal), idValue)
+		var updateQuery string
+
+		switch columnType {
+		case "text", "blob", "boolean", "varchar":
+			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = '%s' WHERE id = %s", column, newValue, idValue)
+		default:
+			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = %s WHERE id = %s", column, newValue, idValue)
+		}
+		
 		//TODO: Protection if using wrong type of data for the column
 		
 		// Execute UPDATE query 
@@ -347,6 +353,7 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 			log.Printf("Error updating data: %s\n query: %s", updateErr, updateQuery)
 			return &Routes.ProtobufUpdateResponse{Errs: []string{updateErr.Error()}}, updateErr
 		}
+		
 	}
 		
 	// Check for errors from the iteration
@@ -359,11 +366,6 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	fmt.Println("Updated", counter, "entries")
 
 	return &Routes.ProtobufUpdateResponse{}, nil
-}
-
-//Temporary function to convert hard coded update value to a string
-func anyToString(value interface{}) string {
-    return fmt.Sprintf("%v", value)
 }
 
 // TODO: Create error checking for cmd
