@@ -339,21 +339,20 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		// Construct UPDATE query with parameter binding (id)
 		var updateQuery string
 
-		switch columnType {
+		switch columnType { //TODO: Protection if using wrong type of data for the column
 		case "text", "blob", "boolean", "varchar":
 			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = '%s' WHERE id = %s", column, newValue, idValue)
 		default:
 			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = %s WHERE id = %s", column, newValue, idValue)
 		}
 		
-		//TODO: Protection if using wrong type of data for the column
+
 		
 		// Execute UPDATE query 
 		if updateErr := session.Query(updateQuery).Exec(); updateErr != nil {
 			log.Printf("Error updating data: %s\n query: %s", updateErr, updateQuery)
 			return &Routes.ProtobufUpdateResponse{Errs: []string{updateErr.Error()}}, updateErr
 		}
-		
 	}
 		
 	// Check for errors from the iteration
