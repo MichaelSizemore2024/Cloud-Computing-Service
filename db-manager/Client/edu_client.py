@@ -126,20 +126,16 @@ if __name__ == '__main__':
             column = input("Enter a specific column: ")
             constraint = input("Enter a constraint: ")
             delete(server_address=args.address, server_port=args.port, table_col = column, col_constraint = constraint)
-            pass
         elif flag == 'update':
             column = input("Enter a specific column: ")
             constraint = input("Enter a constraint to change: ")
             updatedVal = input("Enter new value: ")
             update(server_address=args.address, server_port=args.port, table_col = column, col_constraint = constraint, new_value = updatedVal)
-            pass
         elif flag == 'deleteall':
             dropTable(server_address=args.address, server_port=args.port)
-            pass
         elif flag == 'query':
             # Add the implementation for the 'Query' task
             print("Unimplemented")
-            pass
         elif flag == 'exit':
             print("Exited Client.")
             break

@@ -17,22 +17,22 @@ class DBGenericStub(object):
         self.Insert = channel.unary_unary(
                 '/DBGeneric/Insert',
                 request_serializer=generic__pb2.protobuf_insert_request.SerializeToString,
-                response_deserializer=generic__pb2.protobuf_insert_response.FromString,
+                response_deserializer=generic__pb2.protobuf_error_response.FromString,
                 )
         self.Delete = channel.unary_unary(
                 '/DBGeneric/Delete',
                 request_serializer=generic__pb2.protobuf_delete_request.SerializeToString,
-                response_deserializer=generic__pb2.protobuf_delete_response.FromString,
+                response_deserializer=generic__pb2.protobuf_error_response.FromString,
                 )
         self.Update = channel.unary_unary(
                 '/DBGeneric/Update',
                 request_serializer=generic__pb2.protobuf_update_request.SerializeToString,
-                response_deserializer=generic__pb2.protobuf_update_response.FromString,
+                response_deserializer=generic__pb2.protobuf_error_response.FromString,
                 )
         self.DropTable = channel.unary_unary(
                 '/DBGeneric/DropTable',
                 request_serializer=generic__pb2.protobuf_droptable_request.SerializeToString,
-                response_deserializer=generic__pb2.protobuf_droptable_response.FromString,
+                response_deserializer=generic__pb2.protobuf_error_response.FromString,
                 )
 
 
@@ -69,22 +69,22 @@ def add_DBGenericServicer_to_server(servicer, server):
             'Insert': grpc.unary_unary_rpc_method_handler(
                     servicer.Insert,
                     request_deserializer=generic__pb2.protobuf_insert_request.FromString,
-                    response_serializer=generic__pb2.protobuf_insert_response.SerializeToString,
+                    response_serializer=generic__pb2.protobuf_error_response.SerializeToString,
             ),
             'Delete': grpc.unary_unary_rpc_method_handler(
                     servicer.Delete,
                     request_deserializer=generic__pb2.protobuf_delete_request.FromString,
-                    response_serializer=generic__pb2.protobuf_delete_response.SerializeToString,
+                    response_serializer=generic__pb2.protobuf_error_response.SerializeToString,
             ),
             'Update': grpc.unary_unary_rpc_method_handler(
                     servicer.Update,
                     request_deserializer=generic__pb2.protobuf_update_request.FromString,
-                    response_serializer=generic__pb2.protobuf_update_response.SerializeToString,
+                    response_serializer=generic__pb2.protobuf_error_response.SerializeToString,
             ),
             'DropTable': grpc.unary_unary_rpc_method_handler(
                     servicer.DropTable,
                     request_deserializer=generic__pb2.protobuf_droptable_request.FromString,
-                    response_serializer=generic__pb2.protobuf_droptable_response.SerializeToString,
+                    response_serializer=generic__pb2.protobuf_error_response.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -109,7 +109,7 @@ class DBGeneric(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/DBGeneric/Insert',
             generic__pb2.protobuf_insert_request.SerializeToString,
-            generic__pb2.protobuf_insert_response.FromString,
+            generic__pb2.protobuf_error_response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -126,7 +126,7 @@ class DBGeneric(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/DBGeneric/Delete',
             generic__pb2.protobuf_delete_request.SerializeToString,
-            generic__pb2.protobuf_delete_response.FromString,
+            generic__pb2.protobuf_error_response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -143,7 +143,7 @@ class DBGeneric(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/DBGeneric/Update',
             generic__pb2.protobuf_update_request.SerializeToString,
-            generic__pb2.protobuf_update_response.FromString,
+            generic__pb2.protobuf_error_response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
@@ -160,6 +160,6 @@ class DBGeneric(object):
             metadata=None):
         return grpc.experimental.unary_unary(request, target, '/DBGeneric/DropTable',
             generic__pb2.protobuf_droptable_request.SerializeToString,
-            generic__pb2.protobuf_droptable_response.FromString,
+            generic__pb2.protobuf_error_response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

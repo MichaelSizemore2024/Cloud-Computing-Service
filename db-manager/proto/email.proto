@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 option go_package = "../common";
-import "google/protobuf/empty.proto";
 
 message EmailData {
   int32 label = 1;
