@@ -38,5 +38,3 @@ $ python education_client.py <csv_file_path> --address <server_address> --port <
 
 ## Scylla EXEC cmds ##
  $ cqlsh // 172.20.0.3 9042 // (check logs for specific IP)
-
- # Update to test mirror
