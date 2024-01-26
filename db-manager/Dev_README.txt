@@ -12,6 +12,7 @@ $ pip install requests beautifulsoup4
 $ pip install lxml
 $ pip install pytz #For current time
 
+
 ## Execution ##
 
 # Running the server
@@ -27,7 +28,7 @@ $ python education_client.py <csv_file_path> --address <server_address> --port <
     # i.e for python clients
     $ python3 Client/edu_client.py data/education_data.csv
 # Weather Client
-    $ python3 Client/weather_client.py
+    $ python3 Client/weather_client.py --address <server_address> --port <port_number> <arg>
 # Scrapers
     $ python3 Scrapers/xmloutput.py
     $ python3 Scrapers/testscrape.py

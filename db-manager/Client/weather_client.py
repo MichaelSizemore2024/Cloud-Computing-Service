@@ -1,22 +1,19 @@
 import sys
 import os
-import time
 import grpc
 import argparse
-from datetime import datetime
 import pytz
+from datetime import datetime
 
 # Change directory to Routes so we can import the protobufs
 current_directory = sys.path[0]
 routes_directory = current_directory + '/../common'
 sys.path.insert(1, routes_directory)
 
-
 from google.protobuf import any_pb2
 import weather_pb2
 import generic_pb2
 import generic_pb2_grpc
-
 
 def add_parent_to_path():
     current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -35,12 +32,27 @@ def fetch_weather(station_code):
     from Scrapers.weatherscrape import fetch_weather_data
     return fetch_weather_data(station_code)
 
-if __name__ == "__main__":
-    add_parent_to_path()
-    desired_time_zone = pytz.timezone('America/Denver')  # Track Pull Time?
-    server_address = 'localhost'
-    server_port = 50051
+# Input: Fri, 26 Jan 2024 08:53:00 -0700
+# Output: 2024-01-26 08:53:00 MST
+def convert_to_mst(input_string):
+    # Define the format of the input string
+    input_format = "%a, %d %b %Y %H:%M:%S %z"
 
+    # Parse the input string to a datetime object
+    input_datetime = datetime.strptime(input_string, input_format)
+
+    # Define the MST timezone
+    mst_timezone = pytz.timezone('MST')
+
+    # Convert the datetime object to the MST timezone
+    mst_datetime = input_datetime.astimezone(mst_timezone)
+
+    # Format the result as a string
+    output_string = mst_datetime.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+    return output_string
+
+def run(server_address='localhost', server_port=50051):
     try:
         with grpc.insecure_channel(f'{server_address}:{server_port}') as channel:
             stub = generic_pb2_grpc.DBGenericStub(channel)
@@ -54,7 +66,8 @@ if __name__ == "__main__":
                 stations = fetch_station_codes(abbreviation)
                 for station in stations:
                     # Fetch weather for a specific station code (e.g., KSLC)
-                    station_name, temperature, weather = fetch_weather(station)
+                    station_name, temperature, weather, last_update = fetch_weather(station)
+                    mtn_datetime = convert_to_mst(last_update)
 
                     # Check if weather information is available
                     if station_name is not None:
@@ -63,7 +76,9 @@ if __name__ == "__main__":
                             state=state,
                             station_name=station_name[:-4], # Removes the State Abbr
                             temp_f=str(temperature), # Must be string, if station is down "N/A" is default
-                            weather=weather
+                            weather=weather,
+                            last_update=mtn_datetime,
+                            station_ID=station
                         )
                         # Serialize the Protocol Buffer message
                         serial_data = weather_data_msg.SerializeToString()
@@ -94,52 +109,12 @@ if __name__ == "__main__":
         traceback.print_exc()
         print(f"An unexpected error occurred: {e}")
 
-
-
-
-
-
-# Grabs the number of stations for each state
-# if __name__ == "__main__":
-#     add_parent_to_path()
-#     state_names, abbreviations = fetch_state_abbreviations()
-
-#     for state_code in range(len(abbreviations)):
-#         print(f"State: {state_names[state_code]} : {abbreviations[state_code]}")
-
-#         # Get stations for Given State
-#         station_codes = fetch_station_codes(abbreviations[state_code])
-#         print(f"Number of stations in {abbreviations[state_code]}: {len(station_codes)}")
-
-
-# Individual tests for scraping states weather data
-# if __name__ == "__main__":
-#     add_parent_to_path()
-#     desired_time_zone = pytz.timezone('America/Denver')
-#     state_names, abbreviations = fetch_state_abbreviations()
-
-#     # Get state Abbr
-#     state_code = int(input("Enter 1-50: ")) - 1  # Zero Index
-#     print(f"State: {state_names[state_code]} : {abbreviations[state_code]}")
-
-#     # Enable to fetch number of stations repeatedly
-#     # while True:
-#     #     station_codes = fetch_station_codes(abbreviations[state_code])
-#     #     current_time = datetime.now(desired_time_zone).strftime("%Y-%m-%d %H:%M:%S")
-#     #     print(f"{current_time} - Number of station codes: {len(station_codes)}")
-#     #     time.sleep(30)  # Sleep for 30 seconds before repeating
-
-#     # Get stations for Given State
-#     station_codes = fetch_station_codes(abbreviations[state_code])
-#     print(station_codes)
-
-#     # Fetch weather for a specific station code (e.g., KSLC)
-#     # Station codes are updated constantly. May show more/less if ran twice
-#     weather_result = input("Enter station code: ")
-#     station_name, temperature, weather = fetch_weather(weather_result)
-
-    # # Check if weather information is available
-    # if station_name is not None:
-    #     print(f"Station: {station_name}, Temperature: {temperature} F, Weather: {weather}")
-    # else:
-    #     print(f"No weather information available for station code {station_name}")
+if __name__ == "__main__":
+    add_parent_to_path()
+    # Use argparse to handle command-line arguments
+    parser = argparse.ArgumentParser(description='Education gRPC Client')
+    parser.add_argument('--address', default='localhost', help='Address of the gRPC server')  # Add --address argument
+    parser.add_argument('--port', type=int, default=50051, help='Port number for the gRPC server')  # Add --port argument
+    args = parser.parse_args()
+    print("Client listening at port: {}".format(args.port))  # Print the initial message
+    run(server_address=args.address, server_port=args.port)

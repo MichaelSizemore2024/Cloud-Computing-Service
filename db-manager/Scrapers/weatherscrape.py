@@ -25,11 +25,14 @@ def fetch_weather_data(station_code):
             weather_element = root.find('weather')
             weather = weather_element.text if weather_element is not None else "N/A"
 
+            observation_time = root.find('observation_time_rfc822')
+            last_update = observation_time.text if observation_time is not None else "N/A"
+
             # Return data
-            return station_name, temperature, weather
+            return station_name, temperature, weather, last_update
 
         except etree.XMLSyntaxError as e:
             print(f"Error parsing XML: {e}")
     else:
         print(f"Error: Unable to fetch the weather data (Status Code: {response.status_code})")
-        return None, None, None
+        return None, None, None, None

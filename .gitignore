@@ -1,4 +1,5 @@
 # ignore all the build files for grpc
 db-manager/common
-db-manager/weatherclient
-db-manager/*.xml
+db-manager/xmloutput.xml
+db-manager/Scrapers/testscrape.py
+db-manager/Scrapers/xmloutput.py
