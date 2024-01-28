@@ -15,19 +15,26 @@ import weather_pb2
 import generic_pb2
 import generic_pb2_grpc
 
+# Pathing to find Scrapers
 def add_parent_to_path():
     current_dir = os.path.dirname(os.path.realpath(__file__))
     parent_dir = os.path.abspath(os.path.join(current_dir, '..'))
     sys.path.append(parent_dir)
 
+# Gets array of states, state_abbr
+# From: wikipedia
 def fetch_state_abbreviations():
     from Scrapers.statescrape import fetch_state_abbreviations
     return fetch_state_abbreviations()
 
+# Gets array of stationIDs for given state_abbr
+# From: weather.gov
 def fetch_station_codes(state_abbr):
     from Scrapers.stationscrape import fetch_station_codes
     return fetch_station_codes(state_abbr)
 
+# Gets weather data from given stationIDs
+# From: weather.gov
 def fetch_weather(station_code):
     from Scrapers.weatherscrape import fetch_weather_data
     return fetch_weather_data(station_code)
@@ -52,6 +59,7 @@ def convert_to_mst(input_string):
 
     return output_string
 
+# Fetch all weather data for every Station in every State
 def run(server_address='localhost', server_port=50051):
     try:
         with grpc.insecure_channel(f'{server_address}:{server_port}') as channel:
@@ -117,4 +125,14 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=int, default=50051, help='Port number for the gRPC server')  # Add --port argument
     args = parser.parse_args()
     print("Client listening at port: {}".format(args.port))  # Print the initial message
-    run(server_address=args.address, server_port=args.port)
+    
+    # Check the entered flag and execute the corresponding task
+    while True:
+        flag = input("Enter a specific flag <Run, Exit>: ").lower()
+        if flag == 'run':
+            run(server_address=args.address, server_port=args.port)
+        elif flag == 'exit':
+            print("Exited Client.")
+            break
+        else:
+            print("Invalid flag. Please enter a valid flag.")
