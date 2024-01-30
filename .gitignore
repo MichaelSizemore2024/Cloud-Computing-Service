@@ -3,3 +3,4 @@ db-manager/common
 db-manager/xmloutput.xml
 db-manager/Scrapers/testscrape.py
 db-manager/Scrapers/xmloutput.py
+db-manager/Clients

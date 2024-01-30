@@ -7,12 +7,6 @@ $ export PATH="$PATH:$(go env GOPATH)/bin"
 # Cleanup
 $ go mod tidy
 
-# Scraper/Weather Client Install:
-$ pip install requests beautifulsoup4
-$ pip install lxml
-$ pip install pytz #For current time
-
-
 ## Execution ##
 
 # Running the server
@@ -26,9 +20,9 @@ $ go run Server/server.go <port>
 # Test CSV Client
 $ python education_client.py <csv_file_path> --address <server_address> --port <port_number> <arg>
     # i.e for python clients
-    $ python3 Client/edu_client.py data/education_data.csv
+    $ python3 edu_client.py data/education_data.csv
 # Weather Client
-    $ python3 Client/weather_client.py --address <server_address> --port <port_number> <arg>
+    $ python3 weather_client.py --address <server_address> --port <port_number> <arg>
 # Scrapers
     $ python3 Scrapers/xmloutput.py
     $ python3 Scrapers/testscrape.py

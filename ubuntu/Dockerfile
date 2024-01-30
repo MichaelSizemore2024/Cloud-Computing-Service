@@ -18,8 +18,8 @@ RUN apt-get install -y \
 # Create a directory in the root of the container
 RUN mkdir -p /root/db-manager
 
-# Install gRPC tools for Python
-RUN python3 -m pip install grpcio-tools
+# Install Python Modules
+RUN python3 -m pip install grpcio-tools requests beautifulsoup4 lxml pytz
 
 # Change dir to the volume and install GO
 WORKDIR /root/db-manager

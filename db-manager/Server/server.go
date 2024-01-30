@@ -135,9 +135,86 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 	return &Routes.ProtobufErrorResponse{Errs: []string{}}, nil
 }
 
+// Handles SELECT requests and returns nothing unless an error is encountered
+func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectRequest) (*Routes.ProtobufSelectResponse, error) {
+	//TODO: Find a better approach
+	// Using this as a basic approach but I think we can update this to compile
+	// everything into a protobuf to send back instead of a long string if we can
+	// Figure a reverse type look up or somehow store the original protobuf structure
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tableName := request.Table
+	ks := request.Keyspace
+	column := request.Column
+	constraint := request.Constraint
+
+	// Create a session to interact with the database
+	session, err := s.cluster.CreateSession()
+	if err != nil {
+		log.Printf("Error opening cluster session")
+		return nil, err
+	}
+	defer session.Close()
+
+	// Create index so we can search through contraints (otherwise we can only search via PK)
+	indexQuery := fmt.Sprint("CREATE INDEX IF NOT EXISTS ON ", ks, ".", tableName, "(", column, ")")
+	if indexErr := session.Query(indexQuery).Exec(); indexErr != nil {
+		log.Printf("Error creating index: %s\n query: %s", indexErr, indexQuery)
+		return &Routes.ProtobufSelectResponse{Response: []string{indexErr.Error()}}, indexErr
+	}
+
+	// Gets the value type of the column being used
+	// Might remove this if we change how the condition is passed in
+	columnType, err := getColumnType(session, ks, tableName, column)
+	if err != nil {
+		log.Printf("Error getting column type: %s", err)
+		return &Routes.ProtobufSelectResponse{Response: []string{err.Error()}}, err
+	}
+
+	// Changes the query depending on the type (quotes or no quotes)
+	// Will need to add new types as we try different things
+	// Might remove this if we change how the condition is passed in, parameter binding doesn't work unless casted
+	var selectQuery string
+	switch columnType {
+	case "text", "blob", "boolean", "varchar":
+		// Selects all the id's that meet the condition
+		selectQuery = fmt.Sprintf("SELECT * FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
+	case "int", "bigint", "float", "double", "uuid":
+		selectQuery = fmt.Sprintf("SELECT * FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
+	}
+
+	// Execute query
+	iter := session.Query(selectQuery).Iter()
+
+	rowCount := iter.NumRows()
+	fmt.Println("Rows Returned:", rowCount)
+
+	// Get column names from the result metadata
+	columns := iter.Columns()
+
+	// Create a map to store column values
+	columnValues := make(map[string]interface{})
+
+	// Iterate through each row
+	for iter.MapScan(columnValues) {
+		// Print the contents of each column for the current row
+		for _, colInfo := range columns {
+			colName := colInfo.Name
+			fmt.Printf("%s: %v\t", colName, columnValues[colName])
+		}
+		fmt.Println() // Move to the next line for the next row
+	}
+
+	fmt.Println("RETURNIG")
+
+	return &Routes.ProtobufSelectResponse{}, nil
+}
+
 // Handles UPDATE requests and returns nothing unless an error is encountered
 func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateRequest) (*Routes.ProtobufErrorResponse, error) {
-	s.mu.Lock() // need to lock here
+	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	tableName := request.Table
