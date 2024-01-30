@@ -21,7 +21,7 @@ import (
 
 // Variables that can be passed in via command line such as --port=50051 or -port=50051
 var (
-	port = flag.Int("port", 50051, "The server port")
+	port  = flag.Int("port", 50051, "The server port")
 	debug = flag.Bool("debug", false, "Debug output")
 )
 
@@ -47,12 +47,12 @@ func initDatabaseCluster() *gocql.ClusterConfig {
 }
 
 /* CRUD operations
-* Insert 
+* Insert
 * Selelct
 * Update
 * Delete
 * Drop Table
-*/
+ */
 
 // Handles INSERT requests and returns nothing unless an error is encountered
 func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertRequest) (*Routes.ProtobufErrorResponse, error) {
@@ -64,13 +64,13 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 		msg, err := any.UnmarshalNew() // Unmarshal each Any message to a ProtoMessage
 		// Return error to client in a list of strings if encountered
 		if err != nil {
-			return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err 
+			return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 		}
 		messages = append(messages, msg) // Add new protobuf to list of messages to handle
 	}
 
 	// TODO: MAYBE put this in another GOROUTINE (?) - locks might interfere with some of the asynchronous work
-	
+
 	// Loops over all protobufs received and process them
 	for _, m := range messages {
 		msg_desc := m.ProtoReflect().Descriptor() // find the message descriptor
@@ -140,7 +140,6 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	s.mu.Lock() // need to lock here
 	defer s.mu.Unlock()
 
-
 	tableName := request.Table
 	ks := request.Keyspace
 	column := request.Column
@@ -169,7 +168,7 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		log.Printf("Error getting column type: %s", err)
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
- 
+
 	// Changes the query depending on the type (quotes or no quotes)
 	// Will need to add new types as we try different things
 	// Might remove this if we change how the condition is passed in, parameter binding doesn't work unless casted
@@ -187,10 +186,10 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 
 	// Declare a variable to store the ids in the loop
 	var idValue string
-		
+
 	// Creates counter to keep track # updated
 	counter := 0
-		
+
 	// Loops through returned IDs
 	for iter.Scan(&idValue) {
 		counter++
@@ -203,16 +202,14 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		default:
 			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = %s WHERE id = %s", column, newValue, idValue)
 		}
-		
 
-		
-		// Execute UPDATE query 
+		// Execute UPDATE query
 		if updateErr := session.Query(updateQuery).Exec(); updateErr != nil {
 			log.Printf("Error updating data: %s\n query: %s", updateErr, updateQuery)
 			return &Routes.ProtobufErrorResponse{Errs: []string{updateErr.Error()}}, updateErr
 		}
 	}
-		
+
 	// Check for errors from the iteration
 	if err := iter.Close(); err != nil {
 		log.Printf("Error iterating over result: %s\n query: %s", err, selectQuery)
@@ -257,7 +254,7 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 		log.Printf("Error getting column type: %s", err)
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
- 
+
 	// Changes the query depending on the type (quotes or no quotes)
 	// Will need to add new types as we try different things
 	// Might remove this if we change how the condition is passed in, parameter binding doesn't work unless casted
@@ -275,23 +272,23 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 
 	// Declare a variable to store the ids in the loop
 	var idValue string
-		
+
 	// Creates counter to keep track # deleted
 	counter := 0
-		
+
 	// Loops through returned IDs
 	for iter.Scan(&idValue) {
 		counter++
 		// Construct DELETE query with parameter binding (id)
 		deleteQuery := "DELETE FROM testks.EducationData WHERE id = ?"
-		
-		// Execute DELETE query 
+
+		// Execute DELETE query
 		if deleteErr := session.Query(deleteQuery, idValue).Exec(); deleteErr != nil {
 			log.Printf("Error deleting data: %s\n query: %s", deleteErr, deleteQuery)
 			return &Routes.ProtobufErrorResponse{Errs: []string{deleteErr.Error()}}, deleteErr
 		}
 	}
-		
+
 	// Check for errors from the iteration
 	if err := iter.Close(); err != nil {
 		log.Printf("Error iterating over result: %s\n query: %s", err, selectQuery)
@@ -299,7 +296,7 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	}
 
 	// Prints out total # of rows deleted, useful for debug can prob be removed in the future
-	if *debug{
+	if *debug {
 		fmt.Println("Deleted", counter, "entries")
 	}
 
@@ -309,7 +306,7 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 // Handle DROP TABLE requests
 func (s *server) DropTable(ctx context.Context, request *Routes.ProtobufDroptableRequest) (*Routes.ProtobufErrorResponse, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock() 
+	defer s.mu.Unlock()
 
 	// Create a session to interact with the database
 	session, err := s.cluster.CreateSession()

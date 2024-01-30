@@ -10,14 +10,13 @@ message protobuf_insert_request {
     repeated google.protobuf.Any protobufs = 2;
 }
 
-// Delete data
-message protobuf_delete_request {
+// Selelct data
+message protobuf_select_request {
     string keyspace = 1;
     string table = 2;
     string column = 3;
     string constraint = 4;
 }
-
 
 // Update data
 message protobuf_update_request {
@@ -28,7 +27,15 @@ message protobuf_update_request {
     string new_value = 5;
 }
 
-// Drop Table (clear data)
+// Delete data
+message protobuf_delete_request {
+    string keyspace = 1;
+    string table = 2;
+    string column = 3;
+    string constraint = 4;
+}
+
+// Drop Table
 message protobuf_droptable_request {
     string keyspace = 1;
     string table = 2;
@@ -38,10 +45,14 @@ message protobuf_error_response {
     repeated string errs = 1;
 }
 
+message protobuf_select_response {
+    repeated string response = 1;
+}
 
 service DBGeneric {
     rpc Insert(protobuf_insert_request) returns (protobuf_error_response);
-    rpc Delete(protobuf_delete_request) returns (protobuf_error_response);
+    rpc Select(protobuf_select_request) returns (protobuf_select_response);
     rpc Update(protobuf_update_request) returns (protobuf_error_response);
+    rpc Delete(protobuf_delete_request) returns (protobuf_error_response);
     rpc DropTable(protobuf_droptable_request) returns (protobuf_error_response);
 }

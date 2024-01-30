@@ -84,6 +84,24 @@ def delete(server_address='localhost', server_port=50051, table_col=None, col_co
         # Send the delete request
         response = stub.Delete(delete_request)
         print(f"Server Response: {response.errs}")
+        
+def select(server_address='localhost', server_port=50051, table_col=None, col_constraint=None):
+    # Connect to the gRPC server
+    with grpc.insecure_channel(f'{server_address}:{server_port}') as channel:
+        # Create a stub (client) for the generic service
+        stub = generic_pb2_grpc.DBGenericStub(channel)
+
+        # Create a delete request
+        select_request = generic_pb2.protobuf_select_request(
+            keyspace="testks",
+            table="educationdata",
+            column = table_col,
+            constraint = col_constraint
+        )
+
+        # Send the delete request
+        response = stub.Select(select_request)
+        print(f"Server Response: {response.response}")
 
 def update(server_address='localhost', server_port=50051, table_col=None, col_constraint=None, new_value=None):
     # Connect to the gRPC server
@@ -134,8 +152,9 @@ if __name__ == '__main__':
         elif flag == 'deleteall':
             dropTable(server_address=args.address, server_port=args.port)
         elif flag == 'query':
-            # Add the implementation for the 'Query' task
-            print("Unimplemented")
+            column = input("Enter a specific column: ")
+            constraint = input("Enter a constraint: ")
+            select(server_address=args.address, server_port=args.port, table_col = column, col_constraint = constraint)
         elif flag == 'exit':
             print("Exited Client.")
             break
