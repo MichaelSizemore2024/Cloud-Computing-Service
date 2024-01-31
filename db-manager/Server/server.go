@@ -14,12 +14,13 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	Routes "dbmanager/common" // Import the generated code from protofiles
 )
 
-// Variables that can be passed in via command line such as --port=50051 or -port=50051
+// Variables that can be passed in via command line such as -port=50051
 var (
 	port  = flag.Int("port", 50051, "The server port")
 	debug = flag.Bool("debug", false, "Debug output")
@@ -54,25 +55,33 @@ func initDatabaseCluster() *gocql.ClusterConfig {
 * Drop Table
  */
 
-// Handles INSERT requests and returns nothing unless an error is encountered
+/*
+* Handles INSERT requests and stores the provided protobuf messages in the database.
+*
+ * This method updates`` the table based on the provided condition
+ *
+ * Parameters:
+ *   - ctx: A context object for the request
+ *   - request: A protobuf containing information about the keyspace and table to drop
+ *
+ * Returns:
+ *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
+*/
 func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertRequest) (*Routes.ProtobufErrorResponse, error) {
-	// TODO: maybe use slog package for cleaner/detailed print statements
-	// TODO: ((?) might already be done) maybe need to lock during data handling
+	// Initialize debug counter
+	counter := 0
 
-	messages := []protoreflect.ProtoMessage{} // Create a emtpy list of proto messages
+	// Loops over all protobufs received and process them
 	for _, any := range request.Protobufs {
-		msg, err := any.UnmarshalNew() // Unmarshal each Any message to a ProtoMessage
+
+		// Unmarshal each Any message to a ProtoMessage
+		m, err := any.UnmarshalNew()
+
 		// Return error to client in a list of strings if encountered
 		if err != nil {
 			return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 		}
-		messages = append(messages, msg) // Add new protobuf to list of messages to handle
-	}
 
-	// TODO: MAYBE put this in another GOROUTINE (?) - locks might interfere with some of the asynchronous work
-
-	// Loops over all protobufs received and process them
-	for _, m := range messages {
 		msg_desc := m.ProtoReflect().Descriptor() // find the message descriptor
 		fields := msg_desc.Fields()               // get all the fields in the proto message
 
@@ -80,6 +89,13 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 		queryQms := []string{}                           // just to keep track of ?'s in the query to add
 		values := []interface{}{gocql.TimeUUID()}        // all the values of each field, input for a variadic function/var, timeUUID for uniqie primary key for now
 		queryColTypes := []string{`id UUID PRIMARY KEY`} // for CREATE TABLE, generate the id with the curr datetime to make it unique
+
+		// Adds the serialized message to the table
+		queryCols = append(queryCols, "serial_msg")
+		queryQms = append(queryQms, "?")
+		serializedAny, err := proto.Marshal(any)
+		values = append(values, serializedAny)
+		queryColTypes = append(queryColTypes, "serial_msg BLOB")
 
 		// Loop over each field and infer data
 		for i := 0; i < fields.Len(); i++ {
@@ -93,7 +109,8 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 			queryColTypes = append(queryColTypes, fmt.Sprintf("%s %s", curField.Name(), convertedType)) // NAME TYPE for CQL create table
 		}
 
-		s.mu.Lock() // Need to lock here
+		// Lock to ensure only one goroutine is executed at a time
+		s.mu.Lock()
 		defer s.mu.Unlock()
 
 		// Create a session to interact with the database
@@ -130,6 +147,14 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 			log.Printf("Error inserting data: %s\n query: %s", insertQueryErr, insertQuery)
 			return &Routes.ProtobufErrorResponse{Errs: []string{insertQueryErr.Error()}}, insertQueryErr
 		}
+
+		// Increment counter
+		counter++
+	}
+
+	// Prints out total # of rows updated
+	if *debug {
+		fmt.Println("Inserted", counter, "entries")
 	}
 
 	return &Routes.ProtobufErrorResponse{Errs: []string{}}, nil
@@ -137,14 +162,11 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 
 // Handles SELECT requests and returns nothing unless an error is encountered
 func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectRequest) (*Routes.ProtobufSelectResponse, error) {
-	//TODO: Find a better approach
-	// Using this as a basic approach but I think we can update this to compile
-	// everything into a protobuf to send back instead of a long string if we can
-	// Figure a reverse type look up or somehow store the original protobuf structure
-
+	// Lock to ensure only one goroutine is executed at a time
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Retrieves data from received protobuf
 	tableName := request.Table
 	ks := request.Keyspace
 	column := request.Column
@@ -158,11 +180,14 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 	}
 	defer session.Close()
 
-	// Create index so we can search through contraints (otherwise we can only search via PK)
-	indexQuery := fmt.Sprint("CREATE INDEX IF NOT EXISTS ON ", ks, ".", tableName, "(", column, ")")
-	if indexErr := session.Query(indexQuery).Exec(); indexErr != nil {
-		log.Printf("Error creating index: %s\n query: %s", indexErr, indexQuery)
-		return &Routes.ProtobufSelectResponse{Response: []string{indexErr.Error()}}, indexErr
+	// Create index so we can search through constraints (otherwise we can only search via PK)
+	createIndexQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS ON %s.%s (%s)", ks, tableName, column)
+	if indexErr := session.Query(createIndexQuery).Exec(); indexErr != nil {
+		log.Printf("Error creating index: %s\n query: %s", indexErr, createIndexQuery)
+		return &Routes.ProtobufSelectResponse{
+			Response:  indexErr.Error(), // Use the error message as the response
+			Protobufs: nil,              // Initialize the protobufs slice
+		}, indexErr
 	}
 
 	// Gets the value type of the column being used
@@ -170,7 +195,10 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 	columnType, err := getColumnType(session, ks, tableName, column)
 	if err != nil {
 		log.Printf("Error getting column type: %s", err)
-		return &Routes.ProtobufSelectResponse{Response: []string{err.Error()}}, err
+		return &Routes.ProtobufSelectResponse{
+			Response:  err.Error(), // Use the error message as the response
+			Protobufs: nil,         // Initialize the protobufs slice
+		}, err
 	}
 
 	// Changes the query depending on the type (quotes or no quotes)
@@ -180,43 +208,77 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 	switch columnType {
 	case "text", "blob", "boolean", "varchar":
 		// Selects all the id's that meet the condition
-		selectQuery = fmt.Sprintf("SELECT * FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
+		selectQuery = fmt.Sprintf("SELECT serial_msg FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
 	case "int", "bigint", "float", "double", "uuid":
-		selectQuery = fmt.Sprintf("SELECT * FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
+		selectQuery = fmt.Sprintf("SELECT serial_msg FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
 	}
 
 	// Execute query
 	iter := session.Query(selectQuery).Iter()
 
-	rowCount := iter.NumRows()
-	fmt.Println("Rows Returned:", rowCount)
+	// Prints out total # of rows updated
+	if *debug {
+		rowCount := iter.NumRows()
+		fmt.Println("Selected:", rowCount, "entries")
+	}
 
 	// Get column names from the result metadata
 	columns := iter.Columns()
 
-	// Create a map to store column values
-	columnValues := make(map[string]interface{})
-
-	// Iterate through each row
-	for iter.MapScan(columnValues) {
-		// Print the contents of each column for the current row
-		for _, colInfo := range columns {
-			colName := colInfo.Name
-			fmt.Printf("%s: %v\t", colName, columnValues[colName])
-		}
-		fmt.Println() // Move to the next line for the next row
+	// Initialize a new response
+	response := &Routes.ProtobufSelectResponse{
+		Response:  "",
+		Protobufs: nil, // initialize the protobufs slice
 	}
 
-	fmt.Println("RETURNIG")
+	// Iterate through each row
+	for {
+		// Initialize a new map for each row
+		columnValues := make(map[string]interface{})
 
-	return &Routes.ProtobufSelectResponse{}, nil
+		// Attempt to scan the values for the current row
+		if !iter.MapScan(columnValues) {
+			break // Exit the loop if there are no more rows
+		}
+
+		// Pushing for tonight but this can be cut down
+		// Had a loop before when trying to create new proto but now its just the serial
+		// So can be one line
+		for _, colInfo := range columns {
+			colName := colInfo.Name
+
+			// Perform a type assertion to []byte
+			if rawBytes, ok := columnValues[colName].([]byte); ok {
+				// Append the raw binary data to Protobufs
+				response.Protobufs = append(response.Protobufs, rawBytes)
+			} else {
+				log.Printf("Column %s is not of type []byte", colName)
+				// Handle the error appropriately, e.g., skip the column or return an error
+			}
+		}
+	}
+
+	return response, nil
 }
 
-// Handles UPDATE requests and returns nothing unless an error is encountered
+/*
+ * Update handles UPDATE requests based on specified conditions.
+ *
+ * This method updates the table based on the provided condition
+ *
+ * Parameters:
+ *   - ctx: A context object for the request
+ *   - request: A protobuf containing information about the keyspace and table to drop
+ *
+ * Returns:
+ *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
+ */
 func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateRequest) (*Routes.ProtobufErrorResponse, error) {
+	// Lock to ensure only one goroutine is executed at a time
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Retrieves data from received protobuf
 	tableName := request.Table
 	ks := request.Keyspace
 	column := request.Column
@@ -239,7 +301,6 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	}
 
 	// Gets the value type of the column being used
-	// Might remove this if we change how the condition is passed in
 	columnType, err := getColumnType(session, ks, tableName, column)
 	if err != nil {
 		log.Printf("Error getting column type: %s", err)
@@ -247,8 +308,6 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	}
 
 	// Changes the query depending on the type (quotes or no quotes)
-	// Will need to add new types as we try different things
-	// Might remove this if we change how the condition is passed in, parameter binding doesn't work unless casted
 	var selectQuery string
 	switch columnType {
 	case "text", "blob", "boolean", "varchar":
@@ -258,22 +317,20 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		selectQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
 	}
 
-	// Execute query
+	// Execute query and store results in an interator
 	iter := session.Query(selectQuery).Iter()
 
-	// Declare a variable to store the ids in the loop
+	// Declare a variable to store the ids and keep count
 	var idValue string
-
-	// Creates counter to keep track # updated
 	counter := 0
 
 	// Loops through returned IDs
 	for iter.Scan(&idValue) {
-		counter++
 		// Construct UPDATE query with parameter binding (id)
 		var updateQuery string
 
-		switch columnType { //TODO: Protection if using wrong type of data for the column
+		// Changes query based on type
+		switch columnType {
 		case "text", "blob", "boolean", "varchar":
 			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = '%s' WHERE id = %s", column, newValue, idValue)
 		default:
@@ -285,6 +342,9 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 			log.Printf("Error updating data: %s\n query: %s", updateErr, updateQuery)
 			return &Routes.ProtobufErrorResponse{Errs: []string{updateErr.Error()}}, updateErr
 		}
+
+		// Increment Counter
+		counter++
 	}
 
 	// Check for errors from the iteration
@@ -293,17 +353,33 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
 
-	// Prints out total # of rows updated, useful for debug can prob be removed in the future
-	fmt.Println("Updated", counter, "entries")
+	// Prints out total # of rows updated
+	if *debug {
+		fmt.Println("Updated", counter, "entries")
+	}
 
+	// Returns empty response (No errors encountered)
 	return &Routes.ProtobufErrorResponse{}, nil
 }
 
-// Handle DELETE requests
+/*
+ * Delete handles DELETE requests based on specified conditions.
+ *
+ * This method deletes from the table based on the provided condition
+ *
+ * Parameters:
+ *   - ctx: A context object for the request
+ *   - request: A protobuf containing information about the keyspace and table to drop
+ *
+ * Returns:
+ *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
+ */
 func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteRequest) (*Routes.ProtobufErrorResponse, error) {
-	s.mu.Lock() // need to lock here
+	// Lock to ensure only one goroutine is executed at a time
+	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Retrieves data from received protobuf
 	tableName := request.Table
 	ks := request.Keyspace
 	column := request.Column
@@ -344,18 +420,15 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 		selectQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
 	}
 
-	// Execute query
+	// Execute query and store results in an interator
 	iter := session.Query(selectQuery).Iter()
 
-	// Declare a variable to store the ids in the loop
+	// Declare a variable to store the ids and keep count
 	var idValue string
-
-	// Creates counter to keep track # deleted
 	counter := 0
 
 	// Loops through returned IDs
 	for iter.Scan(&idValue) {
-		counter++
 		// Construct DELETE query with parameter binding (id)
 		deleteQuery := "DELETE FROM testks.EducationData WHERE id = ?"
 
@@ -364,6 +437,9 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 			log.Printf("Error deleting data: %s\n query: %s", deleteErr, deleteQuery)
 			return &Routes.ProtobufErrorResponse{Errs: []string{deleteErr.Error()}}, deleteErr
 		}
+
+		// Increment Counter
+		counter++
 	}
 
 	// Check for errors from the iteration
@@ -372,16 +448,29 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
 
-	// Prints out total # of rows deleted, useful for debug can prob be removed in the future
+	// Prints out total # of rows deleted
 	if *debug {
 		fmt.Println("Deleted", counter, "entries")
 	}
 
+	// Returns empty response (No errors encountered)
 	return &Routes.ProtobufErrorResponse{}, nil
 }
 
-// Handle DROP TABLE requests
+/*
+ * Handle DROP TABLE requests
+ *
+ * This method drops a table from the  database based on the provided request
+ *
+ * Parameters:
+ *   - ctx: A context object for the request
+ *   - request: A protobuf containing information about the keyspace and table to drop
+ *
+ * Returns:
+ *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
+ */
 func (s *server) DropTable(ctx context.Context, request *Routes.ProtobufDroptableRequest) (*Routes.ProtobufErrorResponse, error) {
+	// Lock to ensure only one goroutine is executed at a time
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -406,15 +495,35 @@ func (s *server) DropTable(ctx context.Context, request *Routes.ProtobufDroptabl
 		return &Routes.ProtobufErrorResponse{Errs: []string{dropTableErr.Error()}}, dropTableErr
 	}
 
+	// Prints out total # of rows deleted
+	if *debug {
+		fmt.Println("Dropped", table, "table")
+	}
+
 	return &Routes.ProtobufErrorResponse{}, nil
 }
 
 /* Helper Methods */
 
-// Starts a sesstion and loops through the columns searching for the one matching what is passed in and returns the type of the column in a string the type
+/*
+ * getColumnType retrieves the type of a specified column in a Cassandra table
+ * by querying the system_schema.columns table
+ *
+ * Parameters:
+ *   - session: A session for executing select query
+ *   - keyspace: The keyspace of the target table
+ *   - tableName: The name of the target table
+ *   - columnName: The name of the column for the type
+ *
+ * Returns:
+ *   - string: The data type of the specified column
+ *   - error: An error if encountered during the query or if the column is not found
+ */
 func getColumnType(session *gocql.Session, keyspace, tableName, columnName string) (string, error) {
+	// Selects all the columns and associated types
 	iter := session.Query("SELECT column_name, type FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ?", keyspace, tableName).Iter()
 
+	// Loops through returned column names to look for a matching one
 	var fetchedColumnName, columnType string
 	for iter.Scan(&fetchedColumnName, &columnType) {
 		if fetchedColumnName == columnName {
@@ -422,17 +531,33 @@ func getColumnType(session *gocql.Session, keyspace, tableName, columnName strin
 		}
 	}
 
+	// If nothing returned or an error is returned return an error
 	if err := iter.Close(); err != nil {
 		return "", err
 	}
 
+	// If didn't error but nothing found returns error
 	return "", fmt.Errorf("Column %s not found in table %s", columnName, tableName)
 }
 
-// Helper method that maps protobuf.Kind and protobuf.Value toCQL data types
+/*
+ * convertKindAndValueToCQL maps protobuf.Kind and protobuf.Value to CQL data types.
+ *
+ * It takes a protobuf field type and value, and returns the corresponding CQL data type
+ * as a string and the converted value as an interface{}
+ *
+ * Parameters:
+ *   - fieldType: protoreflect.Kind, the protobuf field type.
+ *   - value: protoreflect.Value, the value of the protobuf field.
+ *
+ * Returns:
+ *   - string: The CQL data type.
+ *   - interface{}: The converted value.
+ *
+ * TODO: Handle Unknown or other types.
+ */
 func convertKindAndValueToCQL(fieldType protoreflect.Kind, value protoreflect.Value) (string, interface{}) {
 	switch fieldType {
-	//case protoreflect.GroupKind, protoreflect.MessageKind: not sure what do do with these yet
 	case protoreflect.BoolKind:
 		return "BOOLEAN", value.Bool()
 	case protoreflect.EnumKind, protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind,
@@ -449,20 +574,36 @@ func convertKindAndValueToCQL(fieldType protoreflect.Kind, value protoreflect.Va
 		return "TEXT", value.String()
 	case protoreflect.BytesKind:
 		return "BLOB", value.Bytes()
-	default: // TODO: Handle Unknown or other types
+	default:
 		return "UNKNOWN", nil
 	}
 }
 
-// TODO: Create error checking for cmd
+/*
+ * Initializes the gRPC server and starts the server to listen for incoming connections.
+ *
+ * Flags:
+ *   - port: Specifies the port on which the gRPC server listens.
+ *   - debug: Enables or disables debug mode.
+ *
+ * Command Line Usage:
+ *   - To override the default port (50051), use the -port flag followed by the desired port number.
+ *     Example: -port=9090
+ *   - To enable debug mode, use the -debug flag.
+ *     Example: -debug=true
+ *
+ * TODO: Create error checking for cmd
+ */
 func main() {
 	// Parses the flags (default if not given)
 	flag.Parse()
 
+	// Creates new server
 	dbserver := NewServer()
 
 	// Override the port if provided as a command line argument
 	if flag.Parsed() {
+		// Checks the port flag
 		if portFlag := flag.Lookup("port"); portFlag != nil {
 			portValue, err := strconv.Atoi(portFlag.Value.String())
 			if err != nil {
@@ -470,6 +611,7 @@ func main() {
 			}
 			port = &portValue
 		}
+		// Checks the debug flag
 		if debugFlag := flag.Lookup("debug"); debugFlag != nil {
 			debugValue, err := strconv.ParseBool(debugFlag.Value.String())
 			if err != nil {
