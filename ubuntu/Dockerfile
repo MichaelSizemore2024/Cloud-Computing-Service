@@ -19,7 +19,13 @@ RUN apt-get install -y \
 RUN mkdir -p /root/db-manager
 
 # Install Python Modules
-RUN python3 -m pip install grpcio-tools requests beautifulsoup4 lxml pytz
+RUN python3 -m pip install \
+    grpcio-tools \
+    requests \
+    beautifulsoup4 \
+    lxml \
+    pytz \
+    schedule
 
 # Change dir to the volume and install GO
 WORKDIR /root/db-manager

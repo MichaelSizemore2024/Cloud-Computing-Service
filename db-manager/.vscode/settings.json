@@ -1,5 +1,7 @@
 {
     "python.analysis.extraPaths": [
-        "./common"
+        "./common",
+        "./Clients/weatherclient/common",
+        "./Clients/csvclients/common"
     ]
 }

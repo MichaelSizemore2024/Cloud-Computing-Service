@@ -5,7 +5,8 @@
 # Cleanup
     $ go mod tidy
 
-# Execution
+## Execution ##
+
 
 # Running the server
 $ go run Server/server.go <port> 
@@ -22,14 +23,14 @@ $ python Clients/csvclients/education_client.py <csv_file_path> --address <serve
 # Running the Weather Client
 $ python3 Clients/weatherclient/weather_client.py --address <server_address> --port <port_number> <arg>
     # i.e for python client
-    $python3 Clients/weatherclient/weather_client.py 
+    $ python3 Clients/weatherclient/weather_client.py 
 
 # Scrapers
-    $ python3 Scrapers/xmloutput.py
-    $ python3 Scrapers/testscrape.py
-    $ python3 Scrapers/statescrape.py
-    $ python3 Scrapers/stationscrape.py
-    $ python3 Scrapers/weatherscrape.py
+    $ python3 Clients/weatherclient/Scrapers/xmloutput.py
+    $ python3 Clients/weatherclient/Scrapers/testscrape.py
+    $ python3 Clients/weatherclient/Scrapers/statescrape.py
+    $ python3 Clients/weatherclient/Scrapers/stationscrape.py
+    $ python3 Clients/weatherclient/Scrapers/weatherscrape.py
 
 ## Scylla EXEC cmds ##
  $ cqlsh // 172.20.0.3 9042 // (check logs for specific IP)
