@@ -93,7 +93,7 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 		// Adds the serialized message to the table
 		queryCols = append(queryCols, "serial_msg")
 		queryQms = append(queryQms, "?")
-		serializedAny, err := proto.Marshal(any)
+		serializedAny, err := proto.Marshal(m)
 		values = append(values, serializedAny)
 		queryColTypes = append(queryColTypes, "serial_msg BLOB")
 
@@ -160,7 +160,16 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 	return &Routes.ProtobufErrorResponse{Errs: []string{}}, nil
 }
 
-// Handles SELECT requests and returns nothing unless an error is encountered
+/*
+* Select handles SELECT requests based on specified conditions.
+
+* Parameters:
+*   - ctx: A context object for the request
+*   - request: A protobuf containing information about the keyspace, table, and constraint
+*
+* Returns:
+*   - *ProtobufErrorResponse: A response containing error information if an error occurs.
+ */
 func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectRequest) (*Routes.ProtobufSelectResponse, error) {
 	// Lock to ensure only one goroutine is executed at a time
 	s.mu.Lock()
@@ -184,7 +193,7 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 	if err := createIndex(session, ks, tableName, column); err != nil {
 		return &Routes.ProtobufSelectResponse{
 			Response:  err.Error(), // Use the error message as the response
-			Protobufs: nil,              // Initialize the protobufs slice
+			Protobufs: nil,         // Initialize the protobufs slice
 		}, err
 	}
 
@@ -201,7 +210,6 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 
 	// Changes the query depending on the type (quotes or no quotes)
 	// Will need to add new types as we try different things
-	// Might remove this if we change how the condition is passed in, parameter binding doesn't work unless casted
 	var selectQuery string
 	switch columnType {
 	case "text", "blob", "boolean", "varchar":
@@ -220,16 +228,13 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 		fmt.Println("Selected:", rowCount, "entries")
 	}
 
-	// Get column names from the result metadata
-	columns := iter.Columns()
-
 	// Initialize a new response
 	response := &Routes.ProtobufSelectResponse{
 		Response:  "",
 		Protobufs: nil, // initialize the protobufs slice
 	}
 
-	// Iterate through each row
+	// Iterate through each returned row row
 	for {
 		// Initialize a new map for each row
 		columnValues := make(map[string]interface{})
@@ -239,20 +244,8 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 			break // Exit the loop if there are no more rows
 		}
 
-		// Pushing for tonight but this can be cut down
-		// Had a loop before when trying to create new proto but now its just the serial
-		// So can be one line
-		for _, colInfo := range columns {
-			colName := colInfo.Name
-
-			// Perform a type assertion to []byte
-			if rawBytes, ok := columnValues[colName].([]byte); ok {
-				// Append the raw binary data to Protobufs
-				response.Protobufs = append(response.Protobufs, rawBytes)
-			} else {
-				log.Printf("Column %s is not of type []byte", colName)
-				// Handle the error appropriately, e.g., skip the column or return an error
-			}
+		if rawBytes, ok := columnValues["serial_msg"].([]byte); ok {
+			response.Protobufs = append(response.Protobufs, rawBytes)
 		}
 	}
 
@@ -260,14 +253,14 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 }
 
 /*
- * Update handles UPDATE requests based on specified conditions.
+* Update handles UPDATE requests based on specified conditions.
 
- * Parameters:
- *   - ctx: A context object for the request
- *   - request: A protobuf containing information about the keyspace and table to drop
- *
- * Returns:
- *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
+* Parameters:
+*   - ctx: A context object for the request
+*   - request: A protobuf containing information about the keyspace, table, and constraint
+*
+* Returns:
+*   - *ProtobufErrorResponse: A response containing error information if an error occurs.
  */
 func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateRequest) (*Routes.ProtobufErrorResponse, error) {
 	// Lock to ensure only one goroutine is executed at a time
@@ -289,10 +282,10 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	}
 	defer session.Close()
 
-    // Creates index
-    if err := createIndex(session, ks, tableName, column); err != nil {
-        return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
-    }
+	// Creates index
+	if err := createIndex(session, ks, tableName, column); err != nil {
+		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+	}
 
 	// Gets the value type of the column being used
 	columnType, err := getColumnType(session, ks, tableName, column)
@@ -379,9 +372,9 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	}
 	defer session.Close()
 
-    if err := createIndex(session, ks, tableName, column); err != nil {
-        return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
-    }
+	if err := createIndex(session, ks, tableName, column); err != nil {
+		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+	}
 
 	// Gets the value type of the column being used
 	// Might remove this if we change how the condition is passed in
@@ -479,7 +472,7 @@ func (s *server) DropTable(ctx context.Context, request *Routes.ProtobufDroptabl
 /* Helper Methods */
 
 /* Creates an index as needed for update and delete methods
-* 
+*
  * Parameters:
  *   - session: A session for executing select query
  *   - keyspace: The keyspace of the target table
@@ -490,18 +483,18 @@ func (s *server) DropTable(ctx context.Context, request *Routes.ProtobufDroptabl
  *	 - error: returns error. No string response needed
 */
 func createIndex(session *gocql.Session, keyspace, tableName, column string) error {
-    indexQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS ON %s.%s (%s)", keyspace, tableName, column)
-    if err := session.Query(indexQuery).Exec(); err != nil {
-        log.Printf("Error creating index: %s\n query: %s", err, indexQuery)
-        return err
-    }
-    return nil
+	indexQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS ON %s.%s (%s)", keyspace, tableName, column)
+	if err := session.Query(indexQuery).Exec(); err != nil {
+		log.Printf("Error creating index: %s\n query: %s", err, indexQuery)
+		return err
+	}
+	return nil
 }
 
 /* Executes selection query for update and delete methods
 *
-*/
-func  selectionQuery(columnType string, ks string, tableName string, column string, constraint string) (string) {
+ */
+func selectionQuery(columnType string, ks string, tableName string, column string, constraint string) string {
 	var returnQuery string
 
 	switch columnType {
@@ -578,8 +571,6 @@ func convertKindAndValueToCQL(fieldType protoreflect.Kind, value protoreflect.Va
 		return "UNKNOWN", nil
 	}
 }
-
-
 
 /*
  * Initializes the gRPC server and starts the server to listen for incoming connections.
