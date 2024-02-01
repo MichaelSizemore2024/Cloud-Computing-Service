@@ -181,13 +181,11 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 	defer session.Close()
 
 	// Create index so we can search through constraints (otherwise we can only search via PK)
-	createIndexQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS ON %s.%s (%s)", ks, tableName, column)
-	if indexErr := session.Query(createIndexQuery).Exec(); indexErr != nil {
-		log.Printf("Error creating index: %s\n query: %s", indexErr, createIndexQuery)
+	if err := createIndex(session, ks, tableName, column); err != nil {
 		return &Routes.ProtobufSelectResponse{
-			Response:  indexErr.Error(), // Use the error message as the response
+			Response:  err.Error(), // Use the error message as the response
 			Protobufs: nil,              // Initialize the protobufs slice
-		}, indexErr
+		}, err
 	}
 
 	// Gets the value type of the column being used
@@ -263,9 +261,7 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 
 /*
  * Update handles UPDATE requests based on specified conditions.
- *
- * This method updates the table based on the provided condition
- *
+
  * Parameters:
  *   - ctx: A context object for the request
  *   - request: A protobuf containing information about the keyspace and table to drop
@@ -293,12 +289,10 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	}
 	defer session.Close()
 
-	// Create index so we can search through contraints (otherwise we can only search via PK)
-	indexQuery := fmt.Sprint("CREATE INDEX IF NOT EXISTS ON ", ks, ".", tableName, "(", column, ")")
-	if indexErr := session.Query(indexQuery).Exec(); indexErr != nil {
-		log.Printf("Error creating index: %s\n query: %s", indexErr, indexQuery)
-		return &Routes.ProtobufErrorResponse{Errs: []string{indexErr.Error()}}, indexErr
-	}
+    // Creates index
+    if err := createIndex(session, ks, tableName, column); err != nil {
+        return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+    }
 
 	// Gets the value type of the column being used
 	columnType, err := getColumnType(session, ks, tableName, column)
@@ -307,15 +301,7 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
 
-	// Changes the query depending on the type (quotes or no quotes)
-	var selectQuery string
-	switch columnType {
-	case "text", "blob", "boolean", "varchar":
-		// Selects all the id's that meet the condition
-		selectQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
-	case "int", "bigint", "float", "double", "uuid":
-		selectQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
-	}
+	var selectQuery = selectionQuery(columnType, ks, tableName, column, constraint)
 
 	// Execute query and store results in an interator
 	iter := session.Query(selectQuery).Iter()
@@ -393,12 +379,9 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	}
 	defer session.Close()
 
-	// Create index so we can search through contraints (otherwise we can only search via PK)
-	indexQuery := fmt.Sprint("CREATE INDEX IF NOT EXISTS ON ", ks, ".", tableName, "(", column, ")")
-	if indexErr := session.Query(indexQuery).Exec(); indexErr != nil {
-		log.Printf("Error creating index: %s\n query: %s", indexErr, indexQuery)
-		return &Routes.ProtobufErrorResponse{Errs: []string{indexErr.Error()}}, indexErr
-	}
+    if err := createIndex(session, ks, tableName, column); err != nil {
+        return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+    }
 
 	// Gets the value type of the column being used
 	// Might remove this if we change how the condition is passed in
@@ -408,17 +391,7 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
 
-	// Changes the query depending on the type (quotes or no quotes)
-	// Will need to add new types as we try different things
-	// Might remove this if we change how the condition is passed in, parameter binding doesn't work unless casted
-	var selectQuery string
-	switch columnType {
-	case "text", "blob", "boolean", "varchar":
-		// Selects all the id's that meet the condition
-		selectQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
-	case "int", "bigint", "float", "double", "uuid":
-		selectQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
-	}
+	var selectQuery = selectionQuery(columnType, ks, tableName, column, constraint)
 
 	// Execute query and store results in an interator
 	iter := session.Query(selectQuery).Iter()
@@ -505,19 +478,46 @@ func (s *server) DropTable(ctx context.Context, request *Routes.ProtobufDroptabl
 
 /* Helper Methods */
 
-/*
- * getColumnType retrieves the type of a specified column in a Cassandra table
- * by querying the system_schema.columns table
- *
+/* Creates an index as needed for update and delete methods
+* 
  * Parameters:
  *   - session: A session for executing select query
  *   - keyspace: The keyspace of the target table
  *   - tableName: The name of the target table
- *   - columnName: The name of the column for the type
+ *   - column: The name of the column for the type
  *
  * Returns:
- *   - string: The data type of the specified column
- *   - error: An error if encountered during the query or if the column is not found
+ *	 - error: returns error. No string response needed
+*/
+func createIndex(session *gocql.Session, keyspace, tableName, column string) error {
+    indexQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS ON %s.%s (%s)", keyspace, tableName, column)
+    if err := session.Query(indexQuery).Exec(); err != nil {
+        log.Printf("Error creating index: %s\n query: %s", err, indexQuery)
+        return err
+    }
+    return nil
+}
+
+/* Executes selection query for update and delete methods
+*
+*/
+func  selectionQuery(columnType string, ks string, tableName string, column string, constraint string) (string) {
+	var returnQuery string
+
+	switch columnType {
+	case "text", "blob", "boolean", "varchar":
+		// Selects all the id's that meet the condition
+		returnQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
+	case "int", "bigint", "float", "double", "uuid":
+		returnQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
+	}
+	return returnQuery
+}
+
+/*
+ * getColumnType retrieves the type of a specified column in a Cassandra table
+ * by querying the system_schema.columns table
+ *
  */
 func getColumnType(session *gocql.Session, keyspace, tableName, columnName string) (string, error) {
 	// Selects all the columns and associated types
@@ -578,6 +578,8 @@ func convertKindAndValueToCQL(fieldType protoreflect.Kind, value protoreflect.Va
 		return "UNKNOWN", nil
 	}
 }
+
+
 
 /*
  * Initializes the gRPC server and starts the server to listen for incoming connections.
