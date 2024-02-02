@@ -208,16 +208,7 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 		}, err
 	}
 
-	// Changes the query depending on the type (quotes or no quotes)
-	// Will need to add new types as we try different things
-	var selectQuery string
-	switch columnType {
-	case "text", "blob", "boolean", "varchar":
-		// Selects all the id's that meet the condition
-		selectQuery = fmt.Sprintf("SELECT serial_msg FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
-	case "int", "bigint", "float", "double", "uuid":
-		selectQuery = fmt.Sprintf("SELECT serial_msg FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
-	}
+	var selectQuery = selectionQuery(columnType, ks, tableName, column, constraint)
 
 	// Execute query
 	iter := session.Query(selectQuery).Iter()
