@@ -85,17 +85,15 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 		msg_desc := m.ProtoReflect().Descriptor() // find the message descriptor
 		fields := msg_desc.Fields()               // get all the fields in the proto message
 
-		queryCols := []string{}                          // list of strings to use strings.Join later for our column names to insert into table
-		queryQms := []string{}                           // just to keep track of ?'s in the query to add
-		values := []interface{}{gocql.TimeUUID()}        // all the values of each field, input for a variadic function/var, timeUUID for uniqie primary key for now
-		queryColTypes := []string{`id UUID PRIMARY KEY`} // for CREATE TABLE, generate the id with the curr datetime to make it unique
+		queryCols := []string{} // list of strings to use strings.Join later for our column names to insert into table
+		queryQms := []string{}  // just to keep track of ?'s in the query to add
+		serializedAny, err := proto.Marshal(m)
+		values := []interface{}{serializedAny}                   // all the values of each field, input for a variadic function/var, timeUUID for uniqie primary key for now
+		queryColTypes := []string{`serial_msg BLOB PRIMARY KEY`} // for CREATE TABLE, generate the id with the curr datetime to make it unique
 
 		// Adds the serialized message to the table
 		queryCols = append(queryCols, "serial_msg")
 		queryQms = append(queryQms, "?")
-		serializedAny, err := proto.Marshal(m)
-		values = append(values, serializedAny)
-		queryColTypes = append(queryColTypes, "serial_msg BLOB")
 
 		// Loop over each field and infer data
 		for i := 0; i < fields.Len(); i++ {
@@ -142,8 +140,8 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 		}
 
 		// handle dynamic insert query
-		insertQuery := fmt.Sprint(`INSERT INTO `, ks, `.`, tableName, ` (id, `, strings.Join(queryCols, `, `), `) VALUES (?, `, strings.Join(queryQms, `, `), `)`) // strings.Join is a nice method
-		if insertQueryErr := session.Query(insertQuery, values...).Exec(); insertQueryErr != nil {                                                                 // look up Variadic Functions for more on the ... syntax
+		insertQuery := fmt.Sprint(`INSERT INTO `, ks, `.`, tableName, ` ( `, strings.Join(queryCols, `, `), `) VALUES (`, strings.Join(queryQms, `, `), `)`) // strings.Join is a nice method
+		if insertQueryErr := session.Query(insertQuery, values...).Exec(); insertQueryErr != nil {                                                           // look up Variadic Functions for more on the ... syntax
 			log.Printf("Error inserting data: %s\n query: %s", insertQueryErr, insertQuery)
 			return &Routes.ProtobufErrorResponse{Errs: []string{insertQueryErr.Error()}}, insertQueryErr
 		}
