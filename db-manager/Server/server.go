@@ -300,13 +300,13 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		// Changes query based on type
 		switch columnType {
 		case "text", "blob", "boolean", "varchar":
-			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = '%s' WHERE id = %s", column, newValue, idValue)
+			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = '%s' WHERE serial_msg = ?", column, newValue)
 		default:
-			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = %s WHERE id = %s", column, newValue, idValue)
+			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = %s WHERE serial_msg = ?", column, newValue)
 		}
 
 		// Execute UPDATE query
-		if updateErr := session.Query(updateQuery).Exec(); updateErr != nil {
+		if updateErr := session.Query(updateQuery, idValue).Exec(); updateErr != nil {
 			log.Printf("Error updating data: %s\n query: %s", updateErr, updateQuery)
 			return &Routes.ProtobufErrorResponse{Errs: []string{updateErr.Error()}}, updateErr
 		}
@@ -385,7 +385,7 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	// Loops through returned IDs
 	for iter.Scan(&idValue) {
 		// Construct DELETE query with parameter binding (id)
-		deleteQuery := "DELETE FROM testks.EducationData WHERE id = ?"
+		deleteQuery := "DELETE FROM testks.EducationData WHERE serial_msg = ?"
 
 		// Execute DELETE query
 		if deleteErr := session.Query(deleteQuery, idValue).Exec(); deleteErr != nil {
@@ -489,9 +489,9 @@ func selectionQuery(columnType string, ks string, tableName string, column strin
 	switch columnType {
 	case "text", "blob", "boolean", "varchar":
 		// Selects all the id's that meet the condition
-		returnQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
+		returnQuery = fmt.Sprintf("SELECT serial_msg FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
 	case "int", "bigint", "float", "double", "uuid":
-		returnQuery = fmt.Sprintf("SELECT id FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
+		returnQuery = fmt.Sprintf("SELECT serial_msg FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
 	}
 	return returnQuery
 }
