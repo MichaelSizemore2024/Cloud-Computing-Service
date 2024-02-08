@@ -59,6 +59,8 @@ services:
     command: /bin/bash
     volumes:
       - ./db-manager/:/root/db-manager/
+    ports:
+      - 50051:50051
     networks:
       - public
     depends_on:
