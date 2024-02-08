@@ -25,7 +25,14 @@ RUN python3 -m pip install \
     beautifulsoup4 \
     lxml \
     pytz \
-    schedule
+    schedule \
+    pandas \
+    pyarrow \
+    numpy \
+    tensorflow \ 
+    scikit-learn
+
+    
 
 # Change dir to the volume and install GO
 WORKDIR /root/db-manager

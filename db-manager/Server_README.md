@@ -24,10 +24,11 @@ $ python Clients/csvclients/education_client.py <csv_file_path> --address <serve
 $ python3 Clients/weatherclient/weather_client.py --address <server_address> --port <port_number> <arg>
     # i.e for python client
     $ python3 Clients/weatherclient/weather_client.py 
+    $ python3 Clients/weatherclient/test_imports.py
+
 
 # Scrapers
     $ python3 Clients/weatherclient/Scrapers/xmloutput.py
-    $ python3 Clients/weatherclient/Scrapers/testscrape.py
     $ python3 Clients/weatherclient/Scrapers/statescrape.py
     $ python3 Clients/weatherclient/Scrapers/stationscrape.py
     $ python3 Clients/weatherclient/Scrapers/weatherscrape.py
