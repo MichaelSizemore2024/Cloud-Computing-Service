@@ -5,7 +5,7 @@ CLIENTS_DIR := Clients
 SUBDIRS := $(wildcard $(CLIENTS_DIR)/*)
 
 # Default targets for 'make'
-all: $(SUBDIRS) education_proto email_proto generic_proto weather_proto
+all: $(SUBDIRS) education_proto email_proto generic_proto weather_proto image_proto
 
 # Iterate over each directory and call its Makefile if it exists
 $(SUBDIRS):
@@ -26,10 +26,13 @@ email_proto:
 weather_proto:
 	protoc --go_out=common --go-grpc_out=common proto/weather.proto
 
+image_proto:
+	protoc --go_out=common --go-grpc_out=common proto/image.proto
+
 generic_proto:
 	protoc --go_out=common --go-grpc_out=common proto/generic.proto
 
-.PHONY: all clean $(SUBDIRS) education_proto email_proto generic_proto weather_proto
+.PHONY: all clean $(SUBDIRS) education_proto email_proto generic_proto weather_proto image_proto
 
 clean:
 	rm -rf common/*

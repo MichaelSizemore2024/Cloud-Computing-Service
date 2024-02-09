@@ -20,6 +20,10 @@ $ python Clients/csvclients/education_client.py <csv_file_path> --address <serve
     # i.e for python client
     $ python3 Clients/csvclients/edu_client.py Clients/csvclients/data/education_data.csv
 
+# Running the Image client
+$ python Clients/imageclient/image_client.py <file_path_for_image_folder> --address <server_address> --port <port_number> <arg>
+    $ python3 Clients/imageclient/image_client.py Clients/imageclient/data
+
 # Running the Weather Client
 $ python3 Clients/weatherclient/weather_client.py --address <server_address> --port <port_number> <arg>
     # i.e for python client

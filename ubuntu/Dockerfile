@@ -30,7 +30,8 @@ RUN python3 -m pip install \
     pyarrow \
     numpy \
     tensorflow \ 
-    scikit-learn
+    scikit-learn \
+    Pillow
 
     
 
