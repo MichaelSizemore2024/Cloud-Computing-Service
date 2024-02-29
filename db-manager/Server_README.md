@@ -38,3 +38,7 @@ $ python3 Clients/weatherclient/weather_client.py --address <server_address> --p
 
 ## Scylla EXEC cmds ##
  $ cqlsh // 172.20.0.3 9042 // (check logs for specific IP)
+
+ # Running the test
+ $ cd Server
+ $ go test
