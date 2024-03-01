@@ -11,8 +11,8 @@ import (
 	Routes "dbmanager/common"
 )
 
-func TestInsert(t *testing.T) {
-	// Initialize the server for testing
+func TestBasicInsert(t *testing.T) {
+	// Initialize the server
 	server := NewServer()
 
 	// Create a new context
@@ -21,7 +21,7 @@ func TestInsert(t *testing.T) {
 	// Create a test EmailData proto
 	testMessage := &Routes.EmailData{
 		Label: 1,
-		Text:  "hello jon",
+		Text:  "testdata",
 	}
 
 	// Marshal the test message to bytes
@@ -42,6 +42,93 @@ func TestInsert(t *testing.T) {
 
 	// Call the Insert method and check the response
 	response, err := server.Insert(ctx, testRequest)
+
+	// Checks to see if any errors returned
+	assert.NoError(t, err, "Unexpected error during Insert")
+	assert.NotNil(t, response, "Unexpected nil response")
+}
+
+func TestBasicSelect(t *testing.T) {
+	// Initialize the server
+	server := NewServer()
+
+	// Create a new context
+	ctx := context.TODO()
+
+	selectRequest := &Routes.ProtobufSelectRequest{
+		Keyspace:   "testkeyspace",
+		Table:      "emaildata",
+		Column:     "text",
+		Constraint: "testdata",
+	}
+
+	// Call the Insert method and check the response
+	response, err := server.Select(ctx, selectRequest)
+
+	// Checks to see if any errors returned
+	assert.NoError(t, err, "Unexpected error during Insert")
+	assert.NotNil(t, response, "Unexpected nil response")
+}
+
+func TestBasicUpdate(t *testing.T) {
+	// Initialize the server
+	server := NewServer()
+
+	// Create a new context
+	ctx := context.TODO()
+
+	updateRequest := &Routes.ProtobufUpdateRequest{
+		Keyspace:   "testkeyspace",
+		Table:      "emaildata",
+		Column:     "label",
+		Constraint: "1",
+		NewValue:   "1",
+	}
+
+	// Call the Insert method and check the response
+	response, err := server.Update(ctx, updateRequest)
+
+	// Checks to see if any errors returned
+	assert.NoError(t, err, "Unexpected error during Insert")
+	assert.NotNil(t, response, "Unexpected nil response")
+}
+
+func TestBasicDelete(t *testing.T) {
+	// Initialize the server
+	server := NewServer()
+
+	// Create a new context
+	ctx := context.TODO()
+
+	deleteRequest := &Routes.ProtobufDeleteRequest{
+		Keyspace:   "testkeyspace",
+		Table:      "emaildata",
+		Column:     "text",
+		Constraint: "testdata",
+	}
+
+	// Call the Insert method and check the response
+	response, err := server.Delete(ctx, deleteRequest)
+
+	// Checks to see if any errors returned
+	assert.NoError(t, err, "Unexpected error during Insert")
+	assert.NotNil(t, response, "Unexpected nil response")
+}
+
+func TestBasicDropTable(t *testing.T) {
+	// Initialize the server
+	server := NewServer()
+
+	// Create a new context
+	ctx := context.TODO()
+
+	dropTableRequest := &Routes.ProtobufDroptableRequest{
+		Keyspace: "testkeyspace",
+		Table:    "emaildata",
+	}
+
+	// Call the Insert method and check the response
+	response, err := server.DropTable(ctx, dropTableRequest)
 
 	// Checks to see if any errors returned
 	assert.NoError(t, err, "Unexpected error during Insert")

@@ -300,9 +300,9 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		// Changes query based on type
 		switch columnType {
 		case "text", "blob", "boolean", "varchar":
-			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = '%s' WHERE serial_msg = ?", column, newValue)
+			updateQuery = fmt.Sprintf("UPDATE testkeyspace.EmailData SET %s = '%s' WHERE serial_msg = ?", column, newValue)
 		default:
-			updateQuery = fmt.Sprintf("UPDATE testks.EducationData SET %s = %s WHERE serial_msg = ?", column, newValue)
+			updateQuery = fmt.Sprintf("UPDATE testkeyspace.EmailData SET %s = %s WHERE serial_msg = ?", column, newValue)
 		}
 
 		// Execute UPDATE query
