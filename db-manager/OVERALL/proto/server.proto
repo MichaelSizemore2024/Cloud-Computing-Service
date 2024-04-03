@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option go_package = "../generated";
+import "google/protobuf/any.proto";
+
+message InsertDetails {
+    // we NEED to change how the ID is calcualted
+    string id = 1;
+    repeated google.protobuf.Any protobufs = 2;
+}
+
+message Constraint {
+    // Temp value CHANGE THIS
+    string message = 1;
+}
+
+enum ServerStatus {
+    CREATED = 0;
+    UPDATED = 1;
+    DELETED = 2;
+    FAILED = 3;
+    DUPLICATE_ENTRY = 4;
+}

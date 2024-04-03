@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option go_package = "../generated";
+import "google/protobuf/any.proto";
+import "proto/server.proto";
+
+// INSERT
+message InsertRequest{
+    string keyspace = 1;
+    repeated google.protobuf.Any protobufs = 2;
+}
+
+message InsertResponse{
+    InsertDetails insertDetails = 1;
+    ServerStatus status = 2;
+}
+
+// Pulling it back to just insert till I get something working
+
+service DBGeneric {
+    rpc Insert(InsertRequest) returns (InsertResponse);
+}

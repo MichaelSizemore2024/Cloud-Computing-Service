@@ -17,20 +17,9 @@ $(SUBDIRS):
 export PATH := $(PATH):$(shell go env GOPATH)/bin
 
 # Main targets required for server
-education_proto:
-	protoc --go_out=common --go-grpc_out=common proto/education.proto
-
-email_proto:
-	protoc --go_out=common --go-grpc_out=common proto/email.proto
-
-weather_proto:
-	protoc --go_out=common --go-grpc_out=common proto/weather.proto
-
-image_proto:
-	protoc --go_out=common --go-grpc_out=common proto/image.proto
-
 generic_proto:
-	protoc --go_out=common --go-grpc_out=common proto/generic.proto
+	protoc --proto_path= proto/*.proto --go_out=generated/ --go-grpc_out=generated/
+
 
 .PHONY: all clean $(SUBDIRS) education_proto email_proto generic_proto weather_proto image_proto
 
