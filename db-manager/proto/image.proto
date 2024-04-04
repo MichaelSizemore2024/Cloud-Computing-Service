@@ -3,6 +3,6 @@ syntax = "proto3";
 option go_package = "../common";
 
 message ImageData {
-    int32 identifier = 1;
+    double identifier = 1;
     string data = 2;
 }
