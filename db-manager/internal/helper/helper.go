@@ -69,14 +69,11 @@ func GetColumnType(session *gocql.Session, keyspace, tableName, columnName strin
 	}
 
 	// If didn't error but nothing found returns error
-	return "", fmt.Errorf("Column %s not found in table %s", columnName, tableName)
+	return "", fmt.Errorf("column %s not found in table %s", columnName, tableName)
 }
 
 /*
  * convertKindAndValueToCQL maps protobuf.Kind and protobuf.Value to CQL data types.
- *
- * It takes a protobuf field type and value, and returns the corresponding CQL data type
- * as a string and the converted value as an interface{}
  *
  * Parameters:
  *   - fieldType: protoreflect.Kind, the protobuf field type.
@@ -86,7 +83,6 @@ func GetColumnType(session *gocql.Session, keyspace, tableName, columnName strin
  *   - string: The CQL data type.
  *   - interface{}: The converted value.
  *
- * TODO: Handle Unknown or other types.
  */
 func ConvertKindAndValueToCQL(fieldType protoreflect.Kind, value protoreflect.Value) (string, interface{}) {
 	switch fieldType {

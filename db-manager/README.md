@@ -5,6 +5,8 @@
 # Cleanup
     $ go mod tidy
 go.uber.org/zap
+go get github.com/joho/godotenv
+
 ## Execution ##
 
 # Running the server

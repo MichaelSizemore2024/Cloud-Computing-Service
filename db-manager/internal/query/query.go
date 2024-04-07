@@ -41,7 +41,7 @@ type Server struct {
  * Returns:
  *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
 */
-func (s *Server) Insert(ctx context.Context, request *Routes.ProtobufInsertRequest) (*Routes.ProtobufErrorResponse, error) {
+func (s *Server) Insert(ctx context.Context, request *Routes.ProtobufInsertRequest) (*Routes.ProtobufServerResponse, error) {
 	// Initialize debug counter
 	counter := 0
 
@@ -53,7 +53,7 @@ func (s *Server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 
 		// Return error to client in a list of strings if encountered
 		if err != nil {
-			return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 		}
 
 		msg_desc := m.ProtoReflect().Descriptor() // find the message descriptor
@@ -102,7 +102,7 @@ func (s *Server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 		ksQuery := fmt.Sprintf(`CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy','replication_factor': 3}`, ks)
 		if ksQueryErr := session.Query(ksQuery).Exec(); ksQueryErr != nil {
 			log.Printf("Error creating keyspace: %s\n query: %s", ksQueryErr, ksQuery)
-			return &Routes.ProtobufErrorResponse{Errs: []string{ksQueryErr.Error()}}, ksQueryErr
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 		}
 
 		// Create a table if it does not exist
@@ -110,14 +110,14 @@ func (s *Server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 		tableQuery := fmt.Sprint(`CREATE TABLE IF NOT EXISTS `, ks, `.`, tableName, ` (`, strings.Join(queryColTypes, `, `), `)`)
 		if tableQueryErr := session.Query(tableQuery).Exec(); tableQueryErr != nil {
 			log.Printf("Error creating table: %s\n query: %s", tableQueryErr, tableQuery)
-			return &Routes.ProtobufErrorResponse{Errs: []string{tableQueryErr.Error()}}, tableQueryErr
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 		}
 
 		// handle dynamic insert query
 		insertQuery := fmt.Sprint(`INSERT INTO `, ks, `.`, tableName, ` ( `, strings.Join(queryCols, `, `), `) VALUES (`, strings.Join(queryQms, `, `), `)`) // strings.Join is a nice method
 		if insertQueryErr := session.Query(insertQuery, values...).Exec(); insertQueryErr != nil {                                                           // look up Variadic Functions for more on the ... syntax
 			log.Printf("Error inserting data: %s\n query: %s", insertQueryErr, insertQuery)
-			return &Routes.ProtobufErrorResponse{Errs: []string{insertQueryErr.Error()}}, insertQueryErr
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 		}
 
 		// Increment counter
@@ -126,8 +126,7 @@ func (s *Server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 
 	// Prints out total # of rows updated
 	fmt.Println("Inserted", counter, "entries")
-
-	return &Routes.ProtobufErrorResponse{Errs: []string{}}, nil
+	return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_CREATED, Errs: []string{}}, nil
 }
 
 /*
@@ -162,7 +161,8 @@ func (s *Server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 	// Create index so we can search through constraints (otherwise we can only search via PK)
 	if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
 		return &Routes.ProtobufSelectResponse{
-			Response:  err.Error(), // Use the error message as the response
+			Status:    Routes.ServerStatus_FAILED,
+			Errs:      err.Error(), // Use the error message as the response
 			Protobufs: nil,         // Initialize the protobufs slice
 		}, err
 	}
@@ -173,7 +173,8 @@ func (s *Server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 	if err != nil {
 		log.Printf("Error getting column type: %s", err)
 		return &Routes.ProtobufSelectResponse{
-			Response:  err.Error(), // Use the error message as the response
+			Status:    Routes.ServerStatus_FAILED,
+			Errs:      err.Error(), // Use the error message as the response
 			Protobufs: nil,         // Initialize the protobufs slice
 		}, err
 	}
@@ -189,7 +190,8 @@ func (s *Server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 
 	// Initialize a new response
 	response := &Routes.ProtobufSelectResponse{
-		Response:  "",
+		Status:    Routes.ServerStatus_SELECTED,
+		Errs:      "",
 		Protobufs: nil, // initialize the protobufs slice
 	}
 
@@ -221,7 +223,7 @@ func (s *Server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 * Returns:
 *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
  */
-func (s *Server) Update(ctx context.Context, request *Routes.ProtobufUpdateRequest) (*Routes.ProtobufErrorResponse, error) {
+func (s *Server) Update(ctx context.Context, request *Routes.ProtobufUpdateRequest) (*Routes.ProtobufServerResponse, error) {
 	// Lock to ensure only one goroutine is executed at a time
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
@@ -243,14 +245,14 @@ func (s *Server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 
 	// Creates index
 	if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
-		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+		return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 	}
 
 	// Gets the value type of the column being used
 	columnType, err := helper.GetColumnType(session, ks, tableName, column)
 	if err != nil {
 		log.Printf("Error getting column type: %s", err)
-		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+		return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 	}
 
 	var selectQuery = helper.SelectionQuery(columnType, ks, tableName, column, constraint)
@@ -267,18 +269,21 @@ func (s *Server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		// Construct UPDATE query with parameter binding (id)
 		var updateQuery string
 
+		// Construct the fully qualified table name
+		qualifiedTableName := fmt.Sprintf("%s.%s", ks, tableName)
+
 		// Changes query based on type
 		switch columnType {
-		case "text", "blob", "boolean", "varchar":
-			updateQuery = fmt.Sprintf("UPDATE testkeyspace.EmailData SET %s = '%s' WHERE serial_msg = ?", column, newValue)
+		case "TEXT", "BLOB", "BOOLEAN", "VARCHAR":
+			updateQuery = fmt.Sprintf("UPDATE %s SET %s = '%s' WHERE serial_msg = ?", qualifiedTableName, column, newValue)
 		default:
-			updateQuery = fmt.Sprintf("UPDATE testkeyspace.EmailData SET %s = %s WHERE serial_msg = ?", column, newValue)
+			updateQuery = fmt.Sprintf("UPDATE %s SET %s = %s WHERE serial_msg = ?", qualifiedTableName, column, newValue)
 		}
 
 		// Execute UPDATE query
 		if updateErr := session.Query(updateQuery, idValue).Exec(); updateErr != nil {
 			log.Printf("Error updating data: %s\n query: %s", updateErr, updateQuery)
-			return &Routes.ProtobufErrorResponse{Errs: []string{updateErr.Error()}}, updateErr
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{updateErr.Error()}}, updateErr
 		}
 
 		// Increment Counter
@@ -288,14 +293,14 @@ func (s *Server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	// Check for errors from the iteration
 	if err := iter.Close(); err != nil {
 		log.Printf("Error iterating over result: %s\n query: %s", err, selectQuery)
-		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+		return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 	}
 
 	// Prints out total # of rows updated
 	fmt.Println("Updated", counter, "entries")
 
 	// Returns empty response (No errors encountered)
-	return &Routes.ProtobufErrorResponse{}, nil
+	return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_UPDATED}, nil
 }
 
 /*
@@ -310,7 +315,7 @@ func (s *Server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
  * Returns:
  *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
  */
-func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteRequest) (*Routes.ProtobufErrorResponse, error) {
+func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteRequest) (*Routes.ProtobufServerResponse, error) {
 	// Lock to ensure only one goroutine is executed at a time
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
@@ -330,7 +335,7 @@ func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	defer session.Close()
 
 	if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
-		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+		return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 	}
 
 	// Gets the value type of the column being used
@@ -338,7 +343,7 @@ func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	columnType, err := helper.GetColumnType(session, ks, tableName, column)
 	if err != nil {
 		log.Printf("Error getting column type: %s", err)
-		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+		return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 	}
 
 	var selectQuery = helper.SelectionQuery(columnType, ks, tableName, column, constraint)
@@ -358,7 +363,7 @@ func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 		// Execute DELETE query
 		if deleteErr := session.Query(deleteQuery, idValue).Exec(); deleteErr != nil {
 			log.Printf("Error deleting data: %s\n query: %s", deleteErr, deleteQuery)
-			return &Routes.ProtobufErrorResponse{Errs: []string{deleteErr.Error()}}, deleteErr
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{deleteErr.Error()}}, deleteErr
 		}
 
 		// Increment Counter
@@ -368,14 +373,14 @@ func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	// Check for errors from the iteration
 	if err := iter.Close(); err != nil {
 		log.Printf("Error iterating over result: %s\n query: %s", err, selectQuery)
-		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
+		return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
 	}
 
 	// Prints out total # of rows deleted
 	fmt.Println("Deleted", counter, "entries")
 
 	// Returns empty response (No errors encountered)
-	return &Routes.ProtobufErrorResponse{}, nil
+	return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_DELETED}, nil
 }
 
 /*
@@ -390,7 +395,7 @@ func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
  * Returns:
  *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
  */
-func (s *Server) DropTable(ctx context.Context, request *Routes.ProtobufDroptableRequest) (*Routes.ProtobufErrorResponse, error) {
+func (s *Server) DropTable(ctx context.Context, request *Routes.ProtobufDroptableRequest) (*Routes.ProtobufServerResponse, error) {
 	// Lock to ensure only one goroutine is executed at a time
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
@@ -413,11 +418,11 @@ func (s *Server) DropTable(ctx context.Context, request *Routes.ProtobufDroptabl
 	// Execute DROP TABLE query
 	if dropTableErr := session.Query(dropTableQuery).Exec(); dropTableErr != nil {
 		log.Printf("Error truncating data: %s\n query: %s", dropTableErr, dropTableQuery)
-		return &Routes.ProtobufErrorResponse{Errs: []string{dropTableErr.Error()}}, dropTableErr
+		return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{dropTableErr.Error()}}, dropTableErr
 	}
 
 	// Prints out total # of rows deleted
 	fmt.Println("Dropped", table, "table")
 
-	return &Routes.ProtobufErrorResponse{}, nil
+	return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_DELETED}, nil
 }

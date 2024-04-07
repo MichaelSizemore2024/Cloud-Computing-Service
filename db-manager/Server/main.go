@@ -22,7 +22,7 @@ var (
 	port = flag.Int("port", 50051, "The server port")
 )
 
-// Newserver initializes and returns a new server.
+// Initializes new server with CRUD interface
 func NewServer() *Query.Server {
 	return &Query.Server{
 		Cluster: initDatabaseCluster(),
