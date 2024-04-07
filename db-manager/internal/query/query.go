@@ -1,50 +1,24 @@
-package main
+package query
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log"
-	"net"
-	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/gocql/gocql" // Scylla Drivers
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
-
 	Routes "dbmanager/common" // Import the generated code from protofiles
-)
+	helper "dbmanager/internal/helper"
 
-// Variables that can be passed in via command line such as -port=50051
-var (
-	port  = flag.Int("port", 50051, "The server port")
-	debug = flag.Bool("debug", false, "Debug output")
+	"github.com/gocql/gocql"
+	"google.golang.org/protobuf/proto"
 )
 
 // Server implements the interface
-type server struct {
+type Server struct {
 	Routes.UnimplementedDBGenericServer // Add this line to embed the unimplemented methods
-	mu                                  sync.Mutex
-	cluster                             *gocql.ClusterConfig
-}
-
-// Newserver initializes and returns a new server.
-func NewServer() *server {
-	return &server{
-		cluster: initDatabaseCluster(),
-	}
-}
-
-// initDatabaseCluster initializes the Cassandra/ScyllaDB cluster configuration.
-func initDatabaseCluster() *gocql.ClusterConfig {
-	cluster := gocql.NewCluster("scylla") // Add ScyllaDB node IP or name here (scylla in this instance)
-	cluster.Consistency = gocql.One       // Set the consistency level
-	return cluster
+	Mu                                  sync.Mutex
+	Cluster                             *gocql.ClusterConfig
 }
 
 /* CRUD operations
@@ -67,7 +41,7 @@ func initDatabaseCluster() *gocql.ClusterConfig {
  * Returns:
  *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
 */
-func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertRequest) (*Routes.ProtobufErrorResponse, error) {
+func (s *Server) Insert(ctx context.Context, request *Routes.ProtobufInsertRequest) (*Routes.ProtobufErrorResponse, error) {
 	// Initialize debug counter
 	counter := 0
 
@@ -102,19 +76,19 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 			queryCols = append(queryCols, string(curField.FullName().Name())) // append the field name to our col list
 			queryQms = append(queryQms, "?")                                  // append ?'s for values portion of cql cmds
 
-			convertedType, convertedValue := convertKindAndValueToCQL(curField.Kind(), m.ProtoReflect().Get(curField))
+			convertedType, convertedValue := helper.ConvertKindAndValueToCQL(curField.Kind(), m.ProtoReflect().Get(curField))
 			values = append(values, convertedValue)                                                     // get the value of the field
 			queryColTypes = append(queryColTypes, fmt.Sprintf("%s %s", curField.Name(), convertedType)) // NAME TYPE for CQL create table
 		}
 
 		// Lock to ensure only one goroutine is executed at a time
-		s.mu.Lock()
-		defer s.mu.Unlock()
+		s.Mu.Lock()
+		defer s.Mu.Unlock()
 
 		// Create a session to interact with the database
-		session, err := s.cluster.CreateSession()
+		session, err := s.Cluster.CreateSession()
 		if err != nil {
-			log.Printf("Error opening cluster session")
+			log.Printf("Error opening Cluster session")
 			return nil, err
 		}
 		defer session.Close()
@@ -151,9 +125,7 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 	}
 
 	// Prints out total # of rows updated
-	if *debug {
-		fmt.Println("Inserted", counter, "entries")
-	}
+	fmt.Println("Inserted", counter, "entries")
 
 	return &Routes.ProtobufErrorResponse{Errs: []string{}}, nil
 }
@@ -168,10 +140,10 @@ func (s *server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 * Returns:
 *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
  */
-func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectRequest) (*Routes.ProtobufSelectResponse, error) {
+func (s *Server) Select(ctx context.Context, request *Routes.ProtobufSelectRequest) (*Routes.ProtobufSelectResponse, error) {
 	// Lock to ensure only one goroutine is executed at a time
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 
 	// Retrieves data from received protobuf
 	tableName := request.Table
@@ -180,15 +152,15 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 	constraint := request.Constraint
 
 	// Create a session to interact with the database
-	session, err := s.cluster.CreateSession()
+	session, err := s.Cluster.CreateSession()
 	if err != nil {
-		log.Printf("Error opening cluster session")
+		log.Printf("Error opening Cluster session")
 		return nil, err
 	}
 	defer session.Close()
 
 	// Create index so we can search through constraints (otherwise we can only search via PK)
-	if err := createIndex(session, ks, tableName, column); err != nil {
+	if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
 		return &Routes.ProtobufSelectResponse{
 			Response:  err.Error(), // Use the error message as the response
 			Protobufs: nil,         // Initialize the protobufs slice
@@ -197,7 +169,7 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 
 	// Gets the value type of the column being used
 	// Might remove this if we change how the condition is passed in
-	columnType, err := getColumnType(session, ks, tableName, column)
+	columnType, err := helper.GetColumnType(session, ks, tableName, column)
 	if err != nil {
 		log.Printf("Error getting column type: %s", err)
 		return &Routes.ProtobufSelectResponse{
@@ -206,16 +178,14 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 		}, err
 	}
 
-	var selectQuery = selectionQuery(columnType, ks, tableName, column, constraint)
+	var selectQuery = helper.SelectionQuery(columnType, ks, tableName, column, constraint)
 
 	// Execute query
 	iter := session.Query(selectQuery).Iter()
 
 	// Prints out total # of rows updated
-	if *debug {
-		rowCount := iter.NumRows()
-		fmt.Println("Selected:", rowCount, "entries")
-	}
+	rowCount := iter.NumRows()
+	fmt.Println("Selected:", rowCount, "entries")
 
 	// Initialize a new response
 	response := &Routes.ProtobufSelectResponse{
@@ -251,10 +221,10 @@ func (s *server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 * Returns:
 *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
  */
-func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateRequest) (*Routes.ProtobufErrorResponse, error) {
+func (s *Server) Update(ctx context.Context, request *Routes.ProtobufUpdateRequest) (*Routes.ProtobufErrorResponse, error) {
 	// Lock to ensure only one goroutine is executed at a time
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 
 	// Retrieves data from received protobuf
 	tableName := request.Table
@@ -264,26 +234,26 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	newValue := request.NewValue
 
 	// Create a session to interact with the database
-	session, err := s.cluster.CreateSession()
+	session, err := s.Cluster.CreateSession()
 	if err != nil {
-		log.Printf("Error opening cluster session")
+		log.Printf("Error opening Cluster session")
 		return nil, err
 	}
 	defer session.Close()
 
 	// Creates index
-	if err := createIndex(session, ks, tableName, column); err != nil {
+	if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
 
 	// Gets the value type of the column being used
-	columnType, err := getColumnType(session, ks, tableName, column)
+	columnType, err := helper.GetColumnType(session, ks, tableName, column)
 	if err != nil {
 		log.Printf("Error getting column type: %s", err)
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
 
-	var selectQuery = selectionQuery(columnType, ks, tableName, column, constraint)
+	var selectQuery = helper.SelectionQuery(columnType, ks, tableName, column, constraint)
 
 	// Execute query and store results in an interator
 	iter := session.Query(selectQuery).Iter()
@@ -322,9 +292,7 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	}
 
 	// Prints out total # of rows updated
-	if *debug {
-		fmt.Println("Updated", counter, "entries")
-	}
+	fmt.Println("Updated", counter, "entries")
 
 	// Returns empty response (No errors encountered)
 	return &Routes.ProtobufErrorResponse{}, nil
@@ -342,10 +310,10 @@ func (s *server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
  * Returns:
  *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
  */
-func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteRequest) (*Routes.ProtobufErrorResponse, error) {
+func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteRequest) (*Routes.ProtobufErrorResponse, error) {
 	// Lock to ensure only one goroutine is executed at a time
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 
 	// Retrieves data from received protobuf
 	tableName := request.Table
@@ -354,26 +322,26 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	constraint := request.Constraint
 
 	// Create a session to interact with the database
-	session, err := s.cluster.CreateSession()
+	session, err := s.Cluster.CreateSession()
 	if err != nil {
-		log.Printf("Error opening cluster session")
+		log.Printf("Error opening Cluster session")
 		return nil, err
 	}
 	defer session.Close()
 
-	if err := createIndex(session, ks, tableName, column); err != nil {
+	if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
 
 	// Gets the value type of the column being used
 	// Might remove this if we change how the condition is passed in
-	columnType, err := getColumnType(session, ks, tableName, column)
+	columnType, err := helper.GetColumnType(session, ks, tableName, column)
 	if err != nil {
 		log.Printf("Error getting column type: %s", err)
 		return &Routes.ProtobufErrorResponse{Errs: []string{err.Error()}}, err
 	}
 
-	var selectQuery = selectionQuery(columnType, ks, tableName, column, constraint)
+	var selectQuery = helper.SelectionQuery(columnType, ks, tableName, column, constraint)
 
 	// Execute query and store results in an interator
 	iter := session.Query(selectQuery).Iter()
@@ -404,9 +372,7 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	}
 
 	// Prints out total # of rows deleted
-	if *debug {
-		fmt.Println("Deleted", counter, "entries")
-	}
+	fmt.Println("Deleted", counter, "entries")
 
 	// Returns empty response (No errors encountered)
 	return &Routes.ProtobufErrorResponse{}, nil
@@ -424,15 +390,15 @@ func (s *server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
  * Returns:
  *   - *ProtobufErrorResponse: A response containing error information if an error occurs.
  */
-func (s *server) DropTable(ctx context.Context, request *Routes.ProtobufDroptableRequest) (*Routes.ProtobufErrorResponse, error) {
+func (s *Server) DropTable(ctx context.Context, request *Routes.ProtobufDroptableRequest) (*Routes.ProtobufErrorResponse, error) {
 	// Lock to ensure only one goroutine is executed at a time
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 
 	// Create a session to interact with the database
-	session, err := s.cluster.CreateSession()
+	session, err := s.Cluster.CreateSession()
 	if err != nil {
-		log.Printf("Error opening cluster session")
+		log.Printf("Error opening Cluster session")
 		return nil, err
 	}
 	defer session.Close()
@@ -451,178 +417,7 @@ func (s *server) DropTable(ctx context.Context, request *Routes.ProtobufDroptabl
 	}
 
 	// Prints out total # of rows deleted
-	if *debug {
-		fmt.Println("Dropped", table, "table")
-	}
+	fmt.Println("Dropped", table, "table")
 
 	return &Routes.ProtobufErrorResponse{}, nil
-}
-
-/* Helper Methods */
-
-/* Creates an index as needed for update and delete methods
-*
- * Parameters:
- *   - session: A session for executing select query
- *   - keyspace: The keyspace of the target table
- *   - tableName: The name of the target table
- *   - column: The name of the column for the type
- *
- * Returns:
- *	 - error: returns error. No string response needed
-*/
-func createIndex(session *gocql.Session, keyspace, tableName, column string) error {
-	indexQuery := fmt.Sprintf("CREATE INDEX IF NOT EXISTS ON %s.%s (%s)", keyspace, tableName, column)
-	if err := session.Query(indexQuery).Exec(); err != nil {
-		log.Printf("Error creating index: %s\n query: %s", err, indexQuery)
-		return err
-	}
-	return nil
-}
-
-/* Executes selection query for update and delete methods
-*
- */
-func selectionQuery(columnType string, ks string, tableName string, column string, constraint string) string {
-	var returnQuery string
-
-	switch columnType {
-	case "text", "blob", "boolean", "varchar":
-		// Selects all the id's that meet the condition
-		returnQuery = fmt.Sprintf("SELECT serial_msg FROM %s.%s WHERE %s = '%s'", ks, tableName, column, constraint)
-	case "int", "bigint", "float", "double", "uuid":
-		returnQuery = fmt.Sprintf("SELECT serial_msg FROM %s.%s WHERE %s = %s", ks, tableName, column, constraint)
-	}
-	return returnQuery
-}
-
-/*
- * getColumnType retrieves the type of a specified column in a Cassandra table
- * by querying the system_schema.columns table
- *
- */
-func getColumnType(session *gocql.Session, keyspace, tableName, columnName string) (string, error) {
-	// Selects all the columns and associated types
-	iter := session.Query("SELECT column_name, type FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ?", keyspace, tableName).Iter()
-
-	// Loops through returned column names to look for a matching one
-	var fetchedColumnName, columnType string
-	for iter.Scan(&fetchedColumnName, &columnType) {
-		if fetchedColumnName == columnName {
-			return columnType, nil
-		}
-	}
-
-	// If nothing returned or an error is returned return an error
-	if err := iter.Close(); err != nil {
-		return "", err
-	}
-
-	// If didn't error but nothing found returns error
-	return "", fmt.Errorf("Column %s not found in table %s", columnName, tableName)
-}
-
-/*
- * convertKindAndValueToCQL maps protobuf.Kind and protobuf.Value to CQL data types.
- *
- * It takes a protobuf field type and value, and returns the corresponding CQL data type
- * as a string and the converted value as an interface{}
- *
- * Parameters:
- *   - fieldType: protoreflect.Kind, the protobuf field type.
- *   - value: protoreflect.Value, the value of the protobuf field.
- *
- * Returns:
- *   - string: The CQL data type.
- *   - interface{}: The converted value.
- *
- * TODO: Handle Unknown or other types.
- */
-func convertKindAndValueToCQL(fieldType protoreflect.Kind, value protoreflect.Value) (string, interface{}) {
-	switch fieldType {
-	case protoreflect.BoolKind:
-		return "BOOLEAN", value.Bool()
-	case protoreflect.EnumKind, protoreflect.Int32Kind, protoreflect.Sint32Kind, protoreflect.Sfixed32Kind,
-		protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
-		return "INT", value.Int()
-	case protoreflect.Int64Kind, protoreflect.Sint64Kind, protoreflect.Sfixed64Kind,
-		protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
-		return "BIGINT", value.Int()
-	case protoreflect.FloatKind:
-		return "FLOAT", value.Float()
-	case protoreflect.DoubleKind:
-		return "DOUBLE", value.Float()
-	case protoreflect.StringKind:
-		return "TEXT", value.String()
-	case protoreflect.BytesKind:
-		return "BLOB", value.Bytes()
-	default:
-		return "UNKNOWN", nil
-	}
-}
-
-/*
- * Initializes the gRPC server and starts the server to listen for incoming connections.
- *
- * Flags:
- *   - port: Specifies the port on which the gRPC server listens.
- *   - debug: Enables or disables debug mode.
- *
- * Command Line Usage:
- *   - To override the default port (50051), use the -port flag followed by the desired port number.
- *     Example: -port=9090
- *   - To enable debug mode, use the -debug flag.
- *     Example: -debug=true
- *
- * TODO: Create error checking for cmd
- */
-func main() {
-	// Parses the flags (default if not given)
-	flag.Parse()
-
-	// Creates new server
-	dbserver := NewServer()
-
-	// Override the port if provided as a command line argument
-	if flag.Parsed() {
-		// Checks the port flag
-		if portFlag := flag.Lookup("port"); portFlag != nil {
-			portValue, err := strconv.Atoi(portFlag.Value.String())
-			if err != nil {
-				log.Fatalf("failed to parse port: %v", err)
-			}
-			port = &portValue
-		}
-		// Checks the debug flag
-		if debugFlag := flag.Lookup("debug"); debugFlag != nil {
-			debugValue, err := strconv.ParseBool(debugFlag.Value.String())
-			if err != nil {
-				log.Fatalf("failed to parse debug: %v", err)
-			}
-			debug = &debugValue
-		}
-	}
-
-	// Create a TCP listener on port var
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-
-	// Create a new gRPC server
-	grpcServer := grpc.NewServer()
-	reflection.Register(grpcServer)
-	// Register the DataRoute service implementation with the server
-	Routes.RegisterDBGenericServer(grpcServer, dbserver)
-
-	// Start the gRPC server as a goroutine
-	go func() {
-		log.Printf("Server listening at %v", listener.Addr())
-		if err := grpcServer.Serve(listener); err != nil {
-			log.Fatalf("failed to serve: %v", err)
-		}
-	}()
-
-	// Blocks to keep the server running
-	select {}
 }
