@@ -26,6 +26,10 @@ compile_protos:
 run:
 	go run Server/main.go
 
+# Run the tests for the server
+test:
+	go test Server/test.go
+
 # Clear compiled Protos
 clean:
 	rm -rf internal/common/*

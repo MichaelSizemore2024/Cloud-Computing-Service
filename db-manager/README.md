@@ -4,8 +4,9 @@
 
 # Cleanup
     $ go mod tidy
-go.uber.org/zap
-go get github.com/joho/godotenv
+    # add these
+    go.uber.org/zap
+    go get github.com/joho/godotenv
 
 ## Execution ##
 
@@ -13,10 +14,13 @@ go get github.com/joho/godotenv
 $ go run Server/server.go <port> 
     # i.e for grpc server
     $ go run Server/server.go
-    $ go run Server/server.go -port=50051
-    $ go run Server/server.go -port=50051 -debug=true
+    $ make run
 
-# Running the CSV Clients
+# Running the server tests
+    $ go test server/test.go
+    $ make test
+
+# Running the CSV Client
 $ python Clients/csvclients/education_client.py <csv_file_path> --address <server_address> --port <port_number> <arg>
     # i.e for python client
     $ python3 Clients/csvclients/edu_client.py Clients/csvclients/data/education_data.csv

@@ -5,6 +5,7 @@ go 1.21.4
 require (
 	github.com/gocql/gocql v1.6.0
 	github.com/golang/protobuf v1.5.3
+	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.8.4
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.59.0

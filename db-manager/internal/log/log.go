@@ -20,7 +20,7 @@ func NewLogger() {
 		loggingConfig.Level.SetLevel(zapcore.DebugLevel)
 
 		// Specify the log file path for output
-		logFilePath := "server.log"
+		logFilePath := "server/server.log"
 		loggingConfig.OutputPaths = []string{logFilePath}
 
 		// Create the log file and clear any information from the prior execution
