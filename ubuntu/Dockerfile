@@ -52,6 +52,8 @@ RUN go mod init dbmanager && \
     go get google.golang.org/protobuf && \
     go get google.golang.org/grpc && \
     go get github.com/gocql/gocql && \
+    go get go.uber.org/zap && \
+    go get github.com/joho/godotenv && \
     go mod tidy
 
 
