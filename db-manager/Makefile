@@ -5,7 +5,7 @@ CLIENTS_DIR := Clients
 SUBDIRS := $(wildcard $(CLIENTS_DIR)/*)
 
 # Default targets for 'make'
-all: $(SUBDIRS) education_proto email_proto generic_proto weather_proto image_proto
+all: $(SUBDIRS) compile_protos
 
 # Iterate over each directory and call its Makefile if it exists
 $(SUBDIRS):
@@ -16,24 +16,18 @@ $(SUBDIRS):
 # Add the export command for PATH when using go
 export PATH := $(PATH):$(shell go env GOPATH)/bin
 
-# Main targets required for server
-education_proto:
-	protoc --go_out=common --go-grpc_out=common proto/education.proto
-
-email_proto:
-	protoc --go_out=common --go-grpc_out=common proto/email.proto
-
-weather_proto:
-	protoc --go_out=common --go-grpc_out=common proto/weather.proto
-
-image_proto:
-	protoc --go_out=common --go-grpc_out=common proto/image.proto
-
-generic_proto:
-	protoc --go_out=common --go-grpc_out=common proto/generic.proto
+# Main targets required for server (compiles everything in proto)
+compile_protos:
+	@protoc --go_out=common --go-grpc_out=common proto/*.proto
 
 .PHONY: all clean $(SUBDIRS) education_proto email_proto generic_proto weather_proto image_proto
 
+# Default run for the server
+run:
+	go run Server/main.go
+
+
+# Clear compiled Protos
 clean:
-	rm -rf common/*
+	rm -rf internal/common/*
 	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) clean;)

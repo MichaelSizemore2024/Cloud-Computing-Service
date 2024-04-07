@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/proto"
 
-	Routes "dbmanager/common"
+	Routes "dbmanager/internal/common"
 )
 
 func TestBasicInsert(t *testing.T) {

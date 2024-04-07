@@ -4,7 +4,7 @@
 
 # Cleanup
     $ go mod tidy
-
+go.uber.org/zap
 ## Execution ##
 
 # Running the server

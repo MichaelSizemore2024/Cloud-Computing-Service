@@ -7,19 +7,19 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/gocql/gocql" // Scylla Drivers
+	"github.com/gocql/gocql"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	Routes "dbmanager/common" // Import the generated code from protofiles
-	Query "dbmanager/internal/query"
+	Routes "dbmanager/internal/common" // Import the generated code from protofiles
+	Log "dbmanager/internal/log"
+	Query "dbmanager/internal/query" // Import Server Interface
 )
 
 // Variables that can be passed in via command line such as -port=50051
 var (
-	port  = flag.Int("port", 50051, "The server port")
-	debug = flag.Bool("debug", false, "Debug output")
+	port = flag.Int("port", 50051, "The server port")
 )
 
 // Newserver initializes and returns a new server.
@@ -46,8 +46,6 @@ func initDatabaseCluster() *gocql.ClusterConfig {
  * Command Line Usage:
  *   - To override the default port (50051), use the -port flag followed by the desired port number.
  *     Example: -port=9090
- *   - To enable debug mode, use the -debug flag.
- *     Example: -debug=true
  *
  * TODO: Create error checking for cmd
  */
@@ -58,6 +56,9 @@ func main() {
 	// Creates new server
 	dbserver := NewServer()
 
+	// Initializes Logger
+	Log.NewLogger()
+
 	// Override the port if provided as a command line argument
 	if flag.Parsed() {
 		// Checks the port flag
@@ -67,14 +68,6 @@ func main() {
 				log.Fatalf("failed to parse port: %v", err)
 			}
 			port = &portValue
-		}
-		// Checks the debug flag
-		if debugFlag := flag.Lookup("debug"); debugFlag != nil {
-			debugValue, err := strconv.ParseBool(debugFlag.Value.String())
-			if err != nil {
-				log.Fatalf("failed to parse debug: %v", err)
-			}
-			debug = &debugValue
 		}
 	}
 
@@ -93,6 +86,7 @@ func main() {
 	// Start the gRPC server as a goroutine
 	go func() {
 		log.Printf("Server listening at %v", listener.Addr())
+		Log.Logger.Info("Application Started successfully on port 80")
 		if err := grpcServer.Serve(listener); err != nil {
 			log.Fatalf("failed to serve: %v", err)
 		}

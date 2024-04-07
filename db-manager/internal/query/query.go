@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	Routes "dbmanager/common" // Import the generated code from protofiles
+	Routes "dbmanager/internal/common" // Import the generated code from protofiles
 	helper "dbmanager/internal/helper"
 
 	"github.com/gocql/gocql"
