@@ -100,21 +100,21 @@ func (s *Server) Insert(ctx context.Context, request *Routes.ProtobufInsertReque
 		ksQuery := fmt.Sprintf(`CREATE KEYSPACE IF NOT EXISTS %s WITH replication = {'class': 'SimpleStrategy','replication_factor': 3}`, ks)
 		if ksQueryErr := session.Query(ksQuery).Exec(); ksQueryErr != nil {
 			Log.Logger.Error("error creating keyspace")
-			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{ksQueryErr.Error()}}, ksQueryErr
 		}
 
 		// Create a table if it does not exist
 		tableQuery := fmt.Sprint(`CREATE TABLE IF NOT EXISTS `, ks, `.`, tableName, ` (`, strings.Join(queryColTypes, `, `), `)`)
 		if tableQueryErr := session.Query(tableQuery).Exec(); tableQueryErr != nil {
 			Log.Logger.Error("error creating table")
-			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{tableQueryErr.Error()}}, tableQueryErr
 		}
 
 		// handle dynamic insert query
 		insertQuery := fmt.Sprint(`INSERT INTO `, ks, `.`, tableName, ` ( `, strings.Join(queryCols, `, `), `) VALUES (`, strings.Join(queryQms, `, `), `)`)
 		if insertQueryErr := session.Query(insertQuery, values...).Exec(); insertQueryErr != nil {
 			Log.Logger.Error("error inserting data")
-			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{insertQueryErr.Error()}}, insertQueryErr
 		}
 
 		// Increment counter
@@ -281,7 +281,7 @@ func (s *Server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 		// Execute UPDATE query
 		if updateErr := session.Query(updateQuery, idValue).Exec(); updateErr != nil {
 			Log.Logger.Error("error updating the table")
-			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{updateErr.Error()}}, updateErr
 		}
 
 		// Increment Counter
@@ -359,7 +359,7 @@ func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 		// Execute DELETE query
 		if deleteErr := session.Query(deleteQuery, idValue).Exec(); deleteErr != nil {
 			Log.Logger.Error("error deleteing data from table")
-			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{deleteErr.Error()}}, deleteErr
 		}
 
 		// Increment Counter
