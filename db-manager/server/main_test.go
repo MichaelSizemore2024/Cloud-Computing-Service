@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/any"
@@ -9,11 +11,39 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	Routes "dbmanager/internal/common"
+	Log "dbmanager/internal/log" // Import Logging for the server
+	// Import Logging for the server
 )
+
+func TestMain(t *testing.T) {
+	// Initializes Logger
+	err := os.Chdir(filepath.Join(".."))
+	if err != nil {
+		panic(err)
+	}
+	Log.NewLogger()
+
+}
+
+func TestServerInitialization(t *testing.T) {
+	// Initialize the server
+	server := NewServer("scylla")
+
+	// Check if server is not nil
+	assert.NotNil(t, server, "Server should not be nil")
+
+	// Check if cluster is initialized
+	assert.NotNil(t, server.Cluster, "Cluster should be initialized")
+
+	// Check if node IP is set correctly
+	assert.Equal(t, "scylla", server.Cluster.Hosts[0], "Node IP should be set to localhost")
+
+	// Additional assertions can be added as needed
+}
 
 func TestBasicInsert(t *testing.T) {
 	// Initialize the server
-	server := NewServer()
+	server := NewServer("scylla")
 
 	// Create a new context
 	ctx := context.TODO()
@@ -50,7 +80,7 @@ func TestBasicInsert(t *testing.T) {
 
 func TestBasicSelect(t *testing.T) {
 	// Initialize the server
-	server := NewServer()
+	server := NewServer("scylla")
 
 	// Create a new context
 	ctx := context.TODO()
@@ -72,7 +102,7 @@ func TestBasicSelect(t *testing.T) {
 
 func TestBasicUpdate(t *testing.T) {
 	// Initialize the server
-	server := NewServer()
+	server := NewServer("scylla")
 
 	// Create a new context
 	ctx := context.TODO()
@@ -95,7 +125,7 @@ func TestBasicUpdate(t *testing.T) {
 
 func TestBasicDelete(t *testing.T) {
 	// Initialize the server
-	server := NewServer()
+	server := NewServer("scylla")
 
 	// Create a new context
 	ctx := context.TODO()
@@ -117,7 +147,7 @@ func TestBasicDelete(t *testing.T) {
 
 func TestBasicDropTable(t *testing.T) {
 	// Initialize the server
-	server := NewServer()
+	server := NewServer("scylla")
 
 	// Create a new context
 	ctx := context.TODO()

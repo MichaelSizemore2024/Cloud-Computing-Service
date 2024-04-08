@@ -5,6 +5,7 @@
 # Cleanup
     $ go mod tidy
 
+
 ## Execution ##
 
 # Running the server

@@ -64,7 +64,6 @@ func main() {
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		Log.Logger.Info("failed to listen on port")
-		fmt.Println("failed to listen: %v", err)
 	}
 
 	// Create a new gRPC server

@@ -28,9 +28,10 @@ run:
 
 # Run the tests for the server
 test:
-	go test Server/test.go
+	go test ./server
 
 # Clear compiled Protos
 clean:
 	rm -rf internal/common/*
+	rm -rf server/server.log
 	$(foreach dir, $(SUBDIRS), $(MAKE) -C $(dir) clean;)
