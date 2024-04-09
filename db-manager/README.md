@@ -11,7 +11,7 @@
 # Running the server
 $ go run Server/server.go <port> 
     # i.e for grpc server
-    $ go run Server/server.go
+    $ go run Server/main.go
     $ make run
 
 # Running the server tests
