@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	Routes "dbmanager/internal/common" // Import the generated code from protofiles
 	helper "dbmanager/internal/helper" // Import the helper methods
@@ -153,14 +154,20 @@ func (s *Server) Select(ctx context.Context, request *Routes.ProtobufSelectReque
 	}
 	defer session.Close()
 
-	// Create index so we can search through constraints (otherwise we can only search via PK)
-	if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
-		Log.Logger.Error("error creating index")
-		return &Routes.ProtobufSelectResponse{
-			Status:    Routes.ServerStatus_FAILED,
-			Errs:      err.Error(), // Use the error message as the response
-			Protobufs: nil,         // Initialize the protobufs slice
-		}, err
+	// Checks to see if index exists as otherwise it needs to be created
+	exists := helper.IndexExists(session, ks, tableName, column)
+	if !exists {
+		// Create index so we can search through constraints (otherwise we can only search via PK)
+		if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
+			Log.Logger.Error("error creating index")
+			return &Routes.ProtobufSelectResponse{
+				Status:    Routes.ServerStatus_FAILED,
+				Errs:      err.Error(), // Use the error message as the response
+				Protobufs: nil,         // Initialize the protobufs slice
+			}, err
+		}
+		//Sleeps to ensure index is fully created (only occurs once on initial index creation)
+		time.Sleep(250 * time.Millisecond)
 	}
 
 	// Gets the value type of the column being used
@@ -239,10 +246,16 @@ func (s *Server) Update(ctx context.Context, request *Routes.ProtobufUpdateReque
 	}
 	defer session.Close()
 
-	// Creates index
-	if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
-		Log.Logger.Error("error creating index")
-		return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
+	// Checks to see if index exists as otherwise it needs to be created
+	exists := helper.IndexExists(session, ks, tableName, column)
+	if !exists {
+		// Creates index
+		if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
+			Log.Logger.Error("error creating index")
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
+		}
+		//Sleeps to ensure index is fully created (only occurs once on initial index creation)
+		time.Sleep(250 * time.Millisecond)
 	}
 
 	// Gets the value type of the column being used
@@ -330,9 +343,16 @@ func (s *Server) Delete(ctx context.Context, request *Routes.ProtobufDeleteReque
 	}
 	defer session.Close()
 
-	if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
-		Log.Logger.Error("error creating index")
-		return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
+	// Checks to see if index exists as otherwise it needs to be created
+	exists := helper.IndexExists(session, ks, tableName, column)
+	if !exists {
+		// Creates index
+		if err := helper.CreateIndex(session, ks, tableName, column); err != nil {
+			Log.Logger.Error("error creating index")
+			return &Routes.ProtobufServerResponse{Status: Routes.ServerStatus_FAILED, Errs: []string{err.Error()}}, err
+		}
+		//Sleeps to ensure index is fully created (only occurs once on initial index creation)
+		time.Sleep(250 * time.Millisecond)
 	}
 
 	columnType, err := helper.GetColumnType(session, ks, tableName, column)

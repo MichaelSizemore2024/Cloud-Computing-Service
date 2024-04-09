@@ -3,6 +3,7 @@ package helper
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/gocql/gocql" // Scylla Drivers
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -49,7 +50,6 @@ func SelectionQuery(columnType string, ks string, tableName string, column strin
 /*
  * getColumnType retrieves the type of a specified column in a Cassandra table
  * by querying the system_schema.columns table
- *
  */
 func GetColumnType(session *gocql.Session, keyspace, tableName, columnName string) (string, error) {
 	// Selects all the columns and associated types
@@ -70,6 +70,24 @@ func GetColumnType(session *gocql.Session, keyspace, tableName, columnName strin
 
 	// If didn't error but nothing found returns error
 	return "", fmt.Errorf("column %s not found in table %s", columnName, tableName)
+}
+
+/*
+ * Checks to see if an index current exists for a given column
+ */
+func IndexExists(session *gocql.Session, keyspace, tableName, columnName string) bool {
+	// Selects all the indexes and associated column names
+	iter := session.Query("SELECT index_name FROM system_schema.indexes WHERE keyspace_name = ? AND table_name = ?", keyspace, tableName).Iter()
+
+	// Loops through returned index names to look for a matching one
+	var indexName string
+	for iter.Scan(&indexName) {
+		if strings.Contains(indexName, fmt.Sprintf("%s_%s_idx", tableName, columnName)) {
+			return true
+		}
+	}
+
+	return false
 }
 
 /*
