@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -37,8 +38,6 @@ func TestServerInitialization(t *testing.T) {
 
 	// Check if node IP is set correctly
 	assert.Equal(t, "scylla", server.Cluster.Hosts[0], "Node IP should be set to localhost")
-
-	// Additional assertions can be added as needed
 }
 
 func TestBasicInsert(t *testing.T) {
@@ -76,6 +75,46 @@ func TestBasicInsert(t *testing.T) {
 	// Checks to see if any errors returned
 	assert.NoError(t, err, "Unexpected error during Insert")
 	assert.NotNil(t, response, "Unexpected nil response")
+
+	// Ensure that the status is "Created"
+	assert.Equal(t, Routes.ServerStatus_CREATED, response.Status, "Expected status to be Created")
+}
+
+func TestExtremeInsert(t *testing.T) {
+	// Initialize the server
+	server := NewServer("scylla")
+
+	// Create a new context
+	ctx := context.TODO()
+
+	// Generate a large amount of test data (e.g., 100 entries)
+	const numEntries = 100
+	testData := make([]*Routes.EmailData, numEntries)
+	for i := 0; i < numEntries; i++ {
+		testData[i] = &Routes.EmailData{
+			Label: int32(i),
+			Text:  fmt.Sprintf("testdata%d", i),
+		}
+	}
+
+	// Insert the test data
+	for _, data := range testData {
+		serializedMessage, err := proto.Marshal(data)
+		assert.NoError(t, err, "Failed to marshal test message")
+
+		anyMessage := &any.Any{
+			TypeUrl: "/EmailData",
+			Value:   serializedMessage,
+		}
+
+		testRequest := &Routes.ProtobufInsertRequest{
+			Keyspace:  "testKeyspace",
+			Protobufs: []*any.Any{anyMessage},
+		}
+
+		_, err = server.Insert(ctx, testRequest)
+		assert.NoError(t, err, "Unexpected error during Insert")
+	}
 }
 
 func TestBasicSelect(t *testing.T) {
@@ -98,6 +137,9 @@ func TestBasicSelect(t *testing.T) {
 	// Checks to see if any errors returned
 	assert.NoError(t, err, "Unexpected error during Insert")
 	assert.NotNil(t, response, "Unexpected nil response")
+
+	// Ensure that the status is "Selected"
+	assert.Equal(t, Routes.ServerStatus_SELECTED, response.Status, "Expected status to be Selected")
 }
 
 func TestBasicUpdate(t *testing.T) {
@@ -121,6 +163,9 @@ func TestBasicUpdate(t *testing.T) {
 	// Checks to see if any errors returned
 	assert.NoError(t, err, "Unexpected error during Insert")
 	assert.NotNil(t, response, "Unexpected nil response")
+
+	// Ensure that the status is "Updated"
+	assert.Equal(t, Routes.ServerStatus_UPDATED, response.Status, "Expected status to be Updated")
 }
 
 func TestBasicDelete(t *testing.T) {
@@ -143,6 +188,9 @@ func TestBasicDelete(t *testing.T) {
 	// Checks to see if any errors returned
 	assert.NoError(t, err, "Unexpected error during Insert")
 	assert.NotNil(t, response, "Unexpected nil response")
+
+	// Ensure that the status is "Deleted"
+	assert.Equal(t, Routes.ServerStatus_DELETED, response.Status, "Expected status to be Deleted")
 }
 
 func TestBasicDropTable(t *testing.T) {
@@ -163,4 +211,7 @@ func TestBasicDropTable(t *testing.T) {
 	// Checks to see if any errors returned
 	assert.NoError(t, err, "Unexpected error during Insert")
 	assert.NotNil(t, response, "Unexpected nil response")
+
+	// Ensure that the status is "Deleted"
+	assert.Equal(t, Routes.ServerStatus_DELETED, response.Status, "Expected status to be Deleted")
 }
